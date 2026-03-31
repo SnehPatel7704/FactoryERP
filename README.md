@@ -1,0 +1,2 @@
+# FactoryERP
+Inventory Management System
