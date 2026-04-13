@@ -34,10 +34,9 @@ const Sidebar = () => {
     {
       label: 'Sales', icon: CreditCard,
       children: [
-        { label: 'Sales Orders', path: '/sales/new' },
         { label: 'Pre-Dispatch Staging', path: '/sales/staging' },
-        { label: 'Generate Challan', path: '/sales/dispatch' },
-        { label: 'Dispatch Return', path: '/returns/dispatch' },
+        { label: 'Sales Orders', path: '/sales/order' },
+        { label: 'Generate Challan', path: '/sales/dispatchPage' },
       ]
     },
     {

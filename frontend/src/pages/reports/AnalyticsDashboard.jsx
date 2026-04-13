@@ -44,11 +44,11 @@ const AnalyticsDashboard = () => {
   const annualProduction = formatIndianNumber(annualData?.metrics?.production || 0);
   const dashMetrics = dashboardData?.metrics || {};
   const chartData = sevenDaysData?.dailyData || [];
-  
+
   // Calculate quality yield (using available data)
   const totalOrders = dashMetrics.totalOrders || 0;
   const pendingOrders = dashMetrics.pendingOrders || 0;
-  const qualityYield = totalOrders > 0 ? (((totalOrders - pendingOrders) / totalOrders) * 100).toFixed(1) : '98.4';
+  const qualityYield = totalOrders > 0 ? (((totalOrders - pendingOrders) / totalOrders) * 100).toFixed(1) : '0';
   const wastage = (100 - parseFloat(qualityYield)).toFixed(1);
 
   // Get max production for scaling the chart
@@ -57,7 +57,7 @@ const AnalyticsDashboard = () => {
   return (
     <div className="pt-2 pb-12 w-full">
       <div className="max-w-7xl mx-auto w-full space-y-8">
-        
+
         {/* Header Section */}
         <div className="flex flex-col mb-10">
           <span className="text-[10px] font-semibold text-teal-500 uppercase tracking-[0.2em] mb-1">Intelligence Module</span>
@@ -135,70 +135,70 @@ const AnalyticsDashboard = () => {
           </div>
 
           <div className="bg-white/5 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300 min-h-[400px]">
-             <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6">
               <h3 className="text-sm font-bold text-slate-200 uppercase tracking-widest flex items-center gap-2">
                 <FileText size={16} className="text-teal-400" /> Live System Metrics
               </h3>
             </div>
-            
+
             <div className="space-y-4">
-               <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 hover:bg-white/10 transition-all">
-                 <div className="flex items-center gap-4">
-                   <span className="w-2 h-2 rounded-full bg-teal-400" />
-                   <div>
-                     <p className="text-sm font-bold text-slate-200">Total Orders</p>
-                     <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">System Count</p>
-                   </div>
-                 </div>
-                 <div className="text-right">
-                   <span className="text-xs font-bold text-teal-400">{totalOrders}</span>
-                 </div>
-               </div>
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-4">
+                  <span className="w-2 h-2 rounded-full bg-teal-400" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-200">Total Orders</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">System Count</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-bold text-teal-400">{totalOrders}</span>
+                </div>
+              </div>
 
-               <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 hover:bg-white/10 transition-all">
-                 <div className="flex items-center gap-4">
-                   <span className="w-2 h-2 rounded-full bg-amber-400" />
-                   <div>
-                     <p className="text-sm font-bold text-slate-200">Pending Orders</p>
-                     <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Active Queue</p>
-                   </div>
-                 </div>
-                 <div className="text-right">
-                   <span className="text-xs font-bold text-amber-400">{pendingOrders}</span>
-                 </div>
-               </div>
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-4">
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-200">Pending Orders</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Active Queue</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-bold text-amber-400">{pendingOrders}</span>
+                </div>
+              </div>
 
-               <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 hover:bg-white/10 transition-all">
-                 <div className="flex items-center gap-4">
-                   <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                   <div>
-                     <p className="text-sm font-bold text-slate-200">Physical Stocks</p>
-                     <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Available Units</p>
-                   </div>
-                 </div>
-                 <div className="text-right">
-                   <span className="text-xs font-bold text-emerald-400">{(dashMetrics.physicalStocks || 0).toLocaleString('en-IN')}</span>
-                 </div>
-               </div>
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-4">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-200">Physical Stocks</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Available Units</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-bold text-emerald-400">{(dashMetrics.physicalStocks || 0).toLocaleString('en-IN')}</span>
+                </div>
+              </div>
 
-               <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 hover:bg-white/10 transition-all">
-                 <div className="flex items-center gap-4">
-                   <span className="w-2 h-2 rounded-full bg-rose-400" />
-                   <div>
-                     <p className="text-sm font-bold text-slate-200">Monthly Production</p>
-                     <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Cumulative Kg</p>
-                   </div>
-                 </div>
-                 <div className="text-right">
-                   <span className="text-xs font-bold text-rose-400">{formatIndianNumber(dashMetrics.monthlyProduction || 0)}</span>
-                 </div>
-               </div>
-               
-               <div className="pt-4 mt-2">
-                 <button onClick={() => { executeDaily(); executeAnnual(); executeSevenDays(); executeDash(); }} className="w-full py-2 bg-teal-500/20 border border-teal-500/30 hover:bg-teal-500/30 hover:border-teal-500/50 text-teal-300 text-xs font-bold uppercase tracking-widest rounded-lg transition-all">
-                   Refresh Data
-                 </button>
-               </div>
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-4">
+                  <span className="w-2 h-2 rounded-full bg-rose-400" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-200">Monthly Production</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Cumulative Kg</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-bold text-rose-400">{formatIndianNumber(dashMetrics.monthlyProduction || 0)}</span>
+                </div>
+              </div>
+
+              <div className="pt-4 mt-2">
+                <button onClick={() => { executeDaily(); executeAnnual(); executeSevenDays(); executeDash(); }} className="w-full py-2 bg-teal-500/20 border border-teal-500/30 hover:bg-teal-500/30 hover:border-teal-500/50 text-teal-300 text-xs font-bold uppercase tracking-widest rounded-lg transition-all">
+                  Refresh Data
+                </button>
+              </div>
             </div>
           </div>
         </div>

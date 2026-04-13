@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+console.log(API_BASE_URL);
 
 const request = async (endpoint, options = {}) => {
   const token = localStorage.getItem('token');
@@ -27,7 +29,7 @@ const request = async (endpoint, options = {}) => {
     if (response.status === 204) {
       return Promise.resolve(null);
     }
-    
+
     // The backend wrapper adds a `success` boolean and wraps the data
     // We can return the whole object and let the caller handle it.
     return response.json();
@@ -42,6 +44,7 @@ const apiClient = {
   get: (endpoint) => request(endpoint, { method: 'GET' }),
   post: (endpoint, body) => request(endpoint, { method: 'POST', body: JSON.stringify(body) }),
   put: (endpoint, body) => request(endpoint, { method: 'PUT', body: JSON.stringify(body) }),
+  patch: (endpoint, body) => request(endpoint, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (endpoint) => request(endpoint, { method: 'DELETE' }),
 };
 

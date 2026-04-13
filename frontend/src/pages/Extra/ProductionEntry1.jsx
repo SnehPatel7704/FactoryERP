@@ -18,7 +18,7 @@ const ProductionEntry = () => {
     qualityId: '',
     sizeId: '',
     colorId: '',
-    weightKg: '',
+    weightId: '',
     lengthMeter: '',
     bagsCount: ''
   });
@@ -48,12 +48,12 @@ const ProductionEntry = () => {
     if (!formData.itemId || !formData.qualityId || !formData.sizeId || !formData.colorId) {
       return alert("Foreign dependencies (Item, Quality, Size, Color) required.");
     }
-    
+
     try {
       await apiClient.post('/inventory/production/entry', formData);
       alert("Factory Batch Sequence Loaded successfully!");
-      setFormData({...formData, weightKg:'', lengthMeter:'', bagsCount:''});
-    } catch(err) {
+      setFormData({ ...formData, weightId: '', lengthMeter: '', bagsCount: '' });
+    } catch (err) {
       alert('Error: ' + err.message);
     }
   };
@@ -77,7 +77,7 @@ const ProductionEntry = () => {
             <Input label="Shift Code" name="shiftCode" placeholder="e.g. SFT-Morning-1A" value={formData.shiftCode} onChange={handleChange} />
             <Input label="Lead Operator ID" name="operatorId" placeholder="Badge Number" value={formData.operatorId} onChange={handleChange} />
             <Input label="Machine Center" name="machineCenter" placeholder="e.g. Loom #14" value={formData.machineCenter} onChange={handleChange} />
-            
+
             <div className="flex flex-col gap-1.5 pt-4 border-t border-outline/20">
               <label className="text-[10px] font-semibold text-slate-400 tracking-[0.05em] uppercase">Target Base Item</label>
               <select name="itemId" value={formData.itemId} onChange={handleChange} className="w-full bg-[#13181f] border border-outline/30 rounded py-2 px-3 text-sm text-slate-200 focus:ring-1 focus:ring-secondary">
@@ -107,7 +107,7 @@ const ProductionEntry = () => {
                 </select>
               </div>
             </div>
-            
+
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-semibold text-slate-400 tracking-[0.05em] uppercase">Color Specification</label>
               <select name="colorId" value={formData.colorId} onChange={handleChange} className="w-full bg-[#13181f] border border-outline/30 rounded py-2 px-3 text-sm text-slate-200 focus:ring-1 focus:ring-secondary">
@@ -117,7 +117,7 @@ const ProductionEntry = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-outline/20">
-              <Input label="Total Weight (Kg)" name="weightKg" type="number" step="0.01" value={formData.weightKg} onChange={handleChange} />
+              <Input label="Total Weight (Kg)" name="weightId" type="number" step="0.01" value={formData.weightId} onChange={handleChange} />
               <Input label="Total Length (Meters)" name="lengthMeter" type="number" step="0.1" value={formData.lengthMeter} onChange={handleChange} />
             </div>
             <Input label="Number of Bags/Rolls Mapped" name="bagsCount" type="number" value={formData.bagsCount} onChange={handleChange} />

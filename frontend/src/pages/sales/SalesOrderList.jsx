@@ -2,22 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '../../hooks/useApi';
 import Loader from '../../components/ui/Loader';
 import ErrorMessage from '../../components/ui/ErrorMessage';
-import { ChevronDown, Edit2, Filter, Plus } from 'lucide-react';
+import OrderDispatchDetails from './OrderDispatchDetails';
+import { ChevronDown, Edit2, Filter, Plus, Truck, FileOutput } from 'lucide-react';
 
-const SalesOrderList = ({ onAddNew, onEditOrder }) => {
+const SalesOrderList = ({ onAddNew, onEditOrder, onViewDispatch, onGenerateChallan }) => {
   // Auth check - get user role from localStorage user object
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : {};
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   // API hooks
-  const { data: allOrders, loading, error, execute: fetchAllOrders } = useApi('/sales/orders', {}, []);
+  const { data: allOrders, loading, error, execute: fetchAllOrders } = useApi('/sales', {}, []);
 
   // State
   const [displayOrders, setDisplayOrders] = useState([]);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterCustomer, setFilterCustomer] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedOrderForDispatch, setSelectedOrderForDispatch] = useState(null);
 
   // Fetch data on mount
   useEffect(() => {
@@ -40,7 +42,7 @@ const SalesOrderList = ({ onAddNew, onEditOrder }) => {
 
     // Filter by customer
     if (filterCustomer) {
-      filtered = filtered.filter(order => 
+      filtered = filtered.filter(order =>
         order.customerName?.toLowerCase().includes(filterCustomer.toLowerCase())
       );
     }
@@ -65,7 +67,7 @@ const SalesOrderList = ({ onAddNew, onEditOrder }) => {
     return {
       orders: displayOrders.length,
       totalWeight: displayOrders.reduce((sum, o) => {
-        const lineTotal = o.lineItems?.reduce((s, l) => s + (parseFloat(l.weightKg) || 0), 0) || 0;
+        const lineTotal = o.lineItems?.reduce((s, l) => s + (parseFloat(l.weightId) || 0), 0) || 0;
         return sum + lineTotal;
       }, 0),
       bags: displayOrders.reduce((sum, o) => sum + (parseInt(o.bags) || 0), 0)
@@ -87,14 +89,24 @@ const SalesOrderList = ({ onAddNew, onEditOrder }) => {
             <h3 className="text-2xl font-extrabold text-white">Sales Orders</h3>
             <p className="text-xs text-slate-400 mt-1">{stats.orders} orders • {stats.totalWeight.toLocaleString('en-IN', { maximumFractionDigits: 2 })} Kg • {stats.bags} bags</p>
           </div>
-          <button
-            onClick={onAddNew}
-            className="bg-green-500 text-slate-900 px-6 py-3 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg shadow-green-500/20 hover:bg-green-600 transition-all active:scale-95"
-            title="Create new sales order"
-          >
-            <Plus size={18} />
-            NEW ORDER
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={onViewDispatch}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95"
+              title="View dispatch history"
+            >
+              <span className="material-symbols-outlined">local_shipping</span>
+              DISPATCH HISTORY
+            </button>
+            <button
+              onClick={onAddNew}
+              className="bg-green-500 text-slate-900 px-6 py-3 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg shadow-green-500/20 hover:bg-green-600 transition-all active:scale-95"
+              title="Create new sales order"
+            >
+              <Plus size={18} />
+              NEW ORDER
+            </button>
+          </div>
         </div>
 
         {/* Filter Controls */}
@@ -168,7 +180,7 @@ const SalesOrderList = ({ onAddNew, onEditOrder }) => {
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Weight (Kg)</th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Bags</th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
-                  {isAdmin && <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Action</th>}
+                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-green-900/10">
@@ -186,11 +198,10 @@ const SalesOrderList = ({ onAddNew, onEditOrder }) => {
                         {order.customerName || 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider ${
-                          order.status === 'confirmed' ? 'bg-green-500/20 text-green-300' :
-                          order.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
-                          'bg-slate-700/20 text-slate-300'
-                        }`}>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider ${order.status === 'confirmed' ? 'bg-green-500/20 text-green-300' :
+                            order.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
+                              'bg-slate-700/20 text-slate-300'
+                          }`}>
                           {order.status}
                         </span>
                       </td>
@@ -198,7 +209,7 @@ const SalesOrderList = ({ onAddNew, onEditOrder }) => {
                         {order.lineItems?.length || 0}
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-right text-white">
-                        {order.lineItems?.reduce((sum, l) => sum + (parseFloat(l.weightKg) || 0), 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0.00'}
+                        {order.lineItems?.reduce((sum, l) => sum + (parseFloat(l.weightId) || 0), 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0.00'}
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-right text-white">
                         {order.bags || 0}
@@ -206,26 +217,52 @@ const SalesOrderList = ({ onAddNew, onEditOrder }) => {
                       <td className="px-6 py-4 text-sm text-slate-400">
                         {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
                       </td>
-                      {isAdmin && (
-                        <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              onEditOrder(order);
+                              setSelectedOrderForDispatch(order);
                             }}
-                            className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg text-xs font-semibold transition-colors"
-                            title="Edit this order (Admin only)"
+                            className="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-xs font-semibold transition-colors"
+                            title="View dispatch history"
                           >
-                            <Edit2 size={14} />
-                            Edit
+                            <Truck size={14} />
+                            Dispatch
                           </button>
-                        </td>
-                      )}
+                          {onGenerateChallan && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onGenerateChallan(order);
+                              }}
+                              className="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg text-xs font-semibold transition-colors"
+                              title="Generate dispatch challan"
+                            >
+                              <FileOutput size={14} />
+                              Challan
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditOrder(order);
+                              }}
+                              className="inline-flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg text-xs font-semibold transition-colors"
+                              title="Edit this order (Admin only)"
+                            >
+                              <Edit2 size={14} />
+                              Edit
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={isAdmin ? 8 : 7} className="px-6 py-12 text-center text-slate-500 text-sm">
+                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500 text-sm">
                       No sales orders found for the selected filters.
                     </td>
                   </tr>
@@ -234,6 +271,15 @@ const SalesOrderList = ({ onAddNew, onEditOrder }) => {
             </table>
           </div>
         </div>
+
+        {/* Dispatch Details Modal */}
+        {selectedOrderForDispatch && (
+          <OrderDispatchDetails
+            orderId={selectedOrderForDispatch.id}
+            orderNumber={selectedOrderForDispatch.orderNumber}
+            onClose={() => setSelectedOrderForDispatch(null)}
+          />
+        )}
       </div>
     </div>
   );

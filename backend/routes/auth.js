@@ -13,6 +13,8 @@ const loginRateLimit = simpleRateLimit(15 * 60 * 1000, 100);
 
 router.post('/login', loginRateLimit, async (req, res) => {
   try {
+    // console.log(req.body);
+
     const { email, password } = req.body;
 
     // Validate request
@@ -83,8 +85,8 @@ router.post('/verify', async (req, res) => {
 router.post('/logout', verifyToken, (req, res) => {
   // Stateless JWT logout - just clear client-side token
   try {
-    return res.status(200).json({ 
-      message: 'Logout successful. Please clear your token from localStorage.' 
+    return res.status(200).json({
+      message: 'Logout successful. Please clear your token from localStorage.'
     });
   } catch (err) {
     return res.status(500).json({ error: 'Logout failed' });

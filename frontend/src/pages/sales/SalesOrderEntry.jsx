@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '../../hooks/useApi';
 import Loader from '../../components/ui/Loader';
 import ErrorMessage from '../../components/ui/ErrorMessage';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import { X, Save, Plus, Trash2 } from 'lucide-react';
 
 const SalesOrderEntry = ({ order, onClose, onSuccess }) => {
   // Use custom API hook for initialization
@@ -11,9 +14,9 @@ const SalesOrderEntry = ({ order, onClose, onSuccess }) => {
 
   const isEditing = !!order;
 
-  const [lineItems, setLineItems] = useState([
-    { id: Date.now(), itemId: '', sizeId: '', qualityId: '', colorId: '', secondaryColorId: '', weightKg: '', lengthMeter: '' }
-  ]);
+  // Track production entries instead of raw line items
+  const [scannedEntries, setScannedEntries] = useState([]);
+  const [skuInput, setSkuInput] = useState('');
 
   const [customerName, setCustomerName] = useState('');
   const [orderNumber, setOrderNumber] = useState(`ORD-${new Date().getFullYear()}-${Math.floor(Math.random() * 8999) + 1000}-X`);
@@ -33,35 +36,52 @@ const SalesOrderEntry = ({ order, onClose, onSuccess }) => {
       setStatus(order.status);
       setBags(order.bags?.toString() || '');
       setNotes(order.internalNotes);
-      if (order.lineItems && order.lineItems.length > 0) {
-        setLineItems(order.lineItems.map(item => ({
-          id: item.id,
-          itemId: item.itemId || '',
-          sizeId: item.sizeId || '',
-          qualityId: item.qualityId || '',
-          colorId: item.colorId || '',
-          secondaryColorId: item.secondaryColorId || '',
-          weightKg: item.weightKg || '',
-          lengthMeter: item.lengthMeter || ''
+      if (order.productionEntries && order.productionEntries.length > 0) {
+        setScannedEntries(order.productionEntries);
+      } else if (order.lineItems && order.lineItems.length > 0) {
+        // Fallback for legacy orders
+        setScannedEntries(order.lineItems.map(item => ({
+          ...item,
+          isLegacy: true,
+          sku: `LEGACY-${item.id.slice(0, 6)}`,
+          item: masterData.items.find(m => m.id === item.itemId),
+          size: masterData.sizes.find(m => m.id === item.sizeId),
+          quality: masterData.qualities.find(m => m.id === item.qualityId),
+          color: masterData.colors.find(m => m.id === item.colorId),
+          secondaryColor: masterData.colors.find(m => m.id === item.secondaryColorId)
         })));
       }
     }
-  }, [order, isEditing]);
+  }, [order, isEditing, masterData]);
 
-  const addLineItem = () => {
-    setLineItems([
-      ...lineItems,
-      { id: Date.now(), itemId: '', sizeId: '', qualityId: '', colorId: '', secondaryColorId: '', weightKg: '', lengthMeter: '' }
-    ]);
+  const handleAddSku = async () => {
+    if (!skuInput.trim()) return;
+    try {
+      const module = await import('../../utils/apiClient.js');
+      const apiClient = module.default;
+
+      const entry = await apiClient.get(`/inventory/production/sku/${encodeURIComponent(skuInput.trim())}`);
+
+      if (entry.status !== 'staged') {
+        // It's possible operators skip staging in emergencies. In that case we probably shouldn't strictly block it, but a warning would be nice.
+        // Due to the strict flow, we enforce staging.
+        alert(`Cannot add: SKU is currently ${entry.status}. Please stage it first.`);
+        return;
+      }
+
+      if (scannedEntries.some(e => e.id === entry.id)) {
+        alert('SKU is already added to this order.');
+        return;
+      }
+
+      setScannedEntries([...scannedEntries, entry]);
+      setSkuInput('');
+    } catch (err) {
+      alert('Error finding SKU: ' + (err.response?.data?.error || err.message));
+    }
   };
 
-  const removeLineItem = (id) => {
-    setLineItems(lineItems.filter(item => item.id !== id));
-  };
-
-  const updateLineItem = (id, field, value) => {
-    setLineItems(lineItems.map(item => item.id === id ? { ...item, [field]: value } : item));
-  };
+  // We should import apiClient at the top. Let's do that in a different chunk.
 
   const handleGenerateOrder = async () => {
     const payload = {
@@ -70,10 +90,19 @@ const SalesOrderEntry = ({ order, onClose, onSuccess }) => {
       status,
       bags: parseInt(bags) || 0,
       internalNotes: notes,
-      lineItems: lineItems.filter(item => item.itemId && item.sizeId && item.qualityId && item.colorId && Number(item.weightKg) > 0)
+      productionEntryIds: scannedEntries.filter(e => !e.isLegacy).map(e => e.id),
+      lineItems: scannedEntries.map(entry => ({
+        itemId: entry.itemId,
+        sizeId: entry.sizeId,
+        qualityId: entry.qualityId,
+        colorId: entry.colorId,
+        secondaryColorId: entry.secondaryColorId,
+        weightId: Number(entry.weightId) || 0,
+        lengthMeter: Number(entry.lengthMeter) || null,
+      }))
     };
 
-    const endpoint = isEditing ? `/sales/orders/${order.id}` : '/sales/new';
+    const endpoint = isEditing ? `/sales/${order.id}` : '/sales/new';
     const method = isEditing ? 'PUT' : 'POST';
 
     const { error: reqError } = await executeSubmit(endpoint, {
@@ -91,92 +120,87 @@ const SalesOrderEntry = ({ order, onClose, onSuccess }) => {
     }
   };
 
-  const totalWeight = lineItems.reduce((acc, curr) => acc + Number(curr.weightKg || 0), 0).toFixed(2);
+  const removeScannedEntry = (id) => {
+    setScannedEntries(scannedEntries.filter(item => item.id !== id));
+  };
 
-  if (loading) return <div className="p-8 flex items-center justify-center min-h-screen text-slate-100"><Loader text="Initializing Catalog Dependencies..." /></div>;
+  const totalWeight = scannedEntries.reduce((acc, curr) => acc + Number(curr.weightId || 0), 0).toFixed(2);
+  const calculatedBags = scannedEntries.reduce((acc, curr) => acc + (curr.bagsCount || (curr.isLegacy ? 0 : 1)), 0);
+
+  useEffect(() => {
+    if (!isEditing && calculatedBags > 0) {
+      setBags(calculatedBags.toString());
+    }
+  }, [calculatedBags, isEditing]);
+
+  if (loading) return <div className="p-8 flex items-center justify-center min-h-screen"><Loader text="Initializing Catalog Dependencies..." /></div>;
   if (error) return <div className="p-8"><ErrorMessage error={error} retryFunction={execute} /></div>;
 
   return (
-    <div className="pt-2 pb-12 w-full min-h-screen">
-      <div className="max-w-7xl mx-auto w-full">
+    <div className="animate-in fade-in duration-300 pt-2 pb-12 w-full min-h-screen">
+      <div className="max-w-7xl mx-auto w-full px-4">
         {submitError && <ErrorMessage error={submitError} />}
-        
+
         <div className="mb-8 flex justify-between items-end">
           <div>
-            <span className="text-[10px] font-semibold text-green-500 uppercase tracking-[0.2em] mb-1 block">Transaction Entry</span>
-            <h1 className="text-3xl font-black text-slate-100 uppercase tracking-tight">{isEditing ? 'Edit Order' : 'New Order'}</h1>
+            <span className="text-[10px] font-semibold text-secondary uppercase tracking-[0.2em] mb-1 block">Transaction Entry</span>
+            <h1 className="text-3xl font-black text-on-surface uppercase tracking-tight">{isEditing ? 'EDIT ORDER' : 'NEW ORDER'}</h1>
           </div>
           <div className="flex gap-3">
             {onClose && (
-              <button 
-                onClick={onClose}
-                className="px-6 py-2 border border-slate-700 text-slate-400 hover:bg-slate-800 transition-colors rounded text-sm font-semibold uppercase tracking-wider"
-              >
+              <Button variant="ghost" onClick={onClose} className="flex items-center gap-2">
+                <X size={16} />
                 Cancel
-              </button>
+              </Button>
             )}
-            <button 
+            <Button
+              variant="primary"
               onClick={handleGenerateOrder}
               disabled={submitting}
-              className="px-6 py-2 bg-green-500 text-slate-900 hover:brightness-110 transition-colors rounded text-sm font-black uppercase tracking-wider shadow-[0_0_15px_rgba(0,200,83,0.3)] disabled:opacity-50"
+              className="flex items-center gap-2"
             >
+              <Save size={16} />
               {submitting ? 'Saving...' : isEditing ? 'Update Order' : 'Generate Order'}
-            </button>
+            </Button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2 bg-slate-900 p-6 border border-blue-900/20 rounded-xl shadow-lg">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              <div className="space-y-2 md:col-span-1">
-                <label className="text-[10px] font-bold text-green-500 uppercase tracking-widest flex items-center gap-1">
-                  Order ID <span className="text-[9px] font-normal text-slate-500 normal-case tracking-normal">(Primary Reference)</span>
-                </label>
+          <div className="lg:col-span-2 bg-surface-container border border-outline/30 p-6 rounded-xl shadow">
+            <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-6">Order Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Order ID</label>
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input 
-                      className="w-full bg-slate-800 border-green-500/50 border text-white px-4 py-3 rounded text-sm font-mono focus:ring-1 focus:ring-green-500/50 outline-none transition-all" 
-                      value={orderNumber}
-                      onChange={(e) => setOrderNumber(e.target.value)}
-                    />
-                  </div>
-                  <button className="px-4 bg-blue-900 border border-green-500/30 text-green-500 hover:bg-blue-800 transition-all rounded flex items-center gap-2 group whitespace-nowrap">
-                    <span className="material-symbols-outlined text-sm group-hover:scale-110 transition-transform">sync</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Fetch</span>
-                  </button>
-                </div>
-                <p className="text-[9px] text-slate-500 italic">* System generated sequential ID.</p>
-              </div>
-
-              <div className="space-y-2 relative">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Customer Name</label>
-                <div className="relative group">
-                  <input 
-                    className="w-full bg-slate-800 border-slate-700 border text-white px-4 py-3 rounded text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition-all" 
-                    placeholder="Search customer database..." 
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                  <input
+                    className="flex-1 px-4 py-3 rounded text-sm bg-surface-container-highest border border-outline text-on-surface focus:border-secondary outline-none transition-all font-mono"
+                    value={orderNumber}
+                    onChange={(e) => setOrderNumber(e.target.value)}
+                    readOnly
                   />
-                  <span className="material-symbols-outlined absolute right-3 top-3 text-slate-500">expand_more</span>
                 </div>
+                <p className="text-[8px] text-on-surface-variant">System generated sequential ID</p>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Number of Bags</label>
-                <input 
-                  className="w-full bg-slate-800 border-slate-700 border text-white px-4 py-3 rounded text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition-all" 
-                  placeholder="0" 
-                  type="number" 
-                  value={bags}
-                  onChange={(e) => setBags(e.target.value)}
-                />
-              </div>
+              <Input
+                label="Customer Name"
+                placeholder="Enter customer name..."
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
+
+              <Input
+                label="Number of Bags"
+                type="number"
+                placeholder="0"
+                value={bags}
+                onChange={(e) => setBags(e.target.value)}
+              />
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order Status</label>
-                <select 
-                  className="w-full bg-slate-800 border-slate-700 border text-white px-4 py-3 rounded text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition-all appearance-none cursor-pointer"
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block">Order Status</label>
+                <select
+                  className="w-full px-4 py-3 rounded text-sm bg-surface-container-highest border border-outline text-on-surface focus:border-secondary outline-none transition-all appearance-none cursor-pointer"
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
                 >
@@ -188,29 +212,21 @@ const SalesOrderEntry = ({ order, onClose, onSuccess }) => {
             </div>
           </div>
 
-          <div className="bg-blue-900/10 border border-green-500/20 p-6 rounded-xl flex flex-col justify-between shadow-lg">
+          <div className="bg-secondary/10 border border-secondary/30 p-6 rounded-xl flex flex-col justify-between shadow">
             <div>
-              <h3 className="text-[12px] font-black text-green-500 uppercase tracking-[0.2em] mb-4">Summary Preview</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center pb-2 border-b border-blue-900/30">
-                  <span className="text-xs text-slate-400">Estimated Items</span>
-                  <span className="text-lg font-bold text-white">{lineItems.length} Units</span>
+              <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4">Order Summary</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center pb-2 border-b border-outline/20">
+                  <span className="text-xs text-on-surface-variant">Total Items</span>
+                  <span className="text-lg font-bold text-on-surface">{scannedEntries.length}</span>
                 </div>
-                <div className="flex justify-between items-center pb-2 border-b border-blue-900/30">
-                  <span className="text-xs text-slate-400">Total Weight</span>
-                  <span className="text-lg font-bold text-white">{totalWeight} kg</span>
+                <div className="flex justify-between items-center pb-2 border-b border-outline/20">
+                  <span className="text-xs text-on-surface-variant">Total Weight</span>
+                  <span className="text-lg font-bold text-on-surface">{totalWeight} kg</span>
                 </div>
-              </div>
-            </div>
-            
-            <div className="mt-8 bg-slate-900 p-4 rounded border border-blue-900/20">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-green-500/10 flex items-center justify-center rounded text-green-500">
-                  <span className="material-symbols-outlined">precision_manufacturing</span>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Production Line</p>
-                  <p className="text-sm font-semibold text-white">Line Alpha (Automated)</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-on-surface-variant">Total Bags</span>
+                  <span className="text-lg font-bold text-on-surface">{bags || 0}</span>
                 </div>
               </div>
             </div>
@@ -218,141 +234,122 @@ const SalesOrderEntry = ({ order, onClose, onSuccess }) => {
         </div>
 
         {/* Order Line Items Box */}
-        <div className="bg-slate-900 border border-blue-900/20 rounded-xl overflow-hidden shadow-2xl">
-          <div className="px-6 py-4 bg-slate-800/40 border-b border-blue-900/30 flex justify-between items-center">
-            <h3 className="text-sm font-bold text-white uppercase tracking-widest">Order Line Items</h3>
-            <button onClick={addLineItem} className="flex items-center gap-2 text-[11px] font-bold text-green-500 hover:text-green-400 transition-colors">
-              <span className="material-symbols-outlined text-sm">add_circle</span>
-              ADD NEW ROW
-            </button>
+        <div className="bg-surface-container border border-outline/30 rounded-xl overflow-hidden shadow">
+          <div className="px-6 py-4 bg-surface-container-highest border-b border-outline/30 flex flex-wrap gap-4 justify-between items-center">
+            <h3 className="text-sm font-black text-on-surface uppercase tracking-widest">Order Line Items</h3>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Scan SKU & Press Enter..."
+                value={skuInput}
+                onChange={(e) => setSkuInput(e.target.value)}
+                onKeyPress={async (e) => {
+                  if (e.key === 'Enter') {
+                    await handleAddSku();
+                  }
+                }}
+                className="bg-surface-container border border-outline text-sm text-on-surface px-4 py-2 rounded-lg focus:border-secondary outline-none w-64 font-mono"
+              />
+              <button
+                type="button"
+                onClick={handleAddSku}
+                disabled={!skuInput.trim()}
+                className="bg-secondary/20 hover:bg-secondary/30 text-secondary border border-secondary/30 px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                <Plus size={16} /> ADD
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left">
               <thead>
-                <tr className="bg-blue-900/20 text-slate-400">
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-r border-blue-900/10">ITEM</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-r border-blue-900/10">SIZE</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-r border-blue-900/10">QUALITY</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-r border-blue-900/10 w-32">Weight (kg)</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-r border-blue-900/10 w-32">Meter (m)</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-r border-blue-900/10">Color</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-r border-blue-900/10">Sec. Color</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest w-12"></th>
+                <tr className="bg-surface-container-highest border-b border-outline/20">
+                  <th className="px-3 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">SKU</th>
+                  <th className="px-3 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">ITEM</th>
+                  <th className="px-3 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">SIZE</th>
+                  <th className="px-3 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">QUALITY</th>
+                  <th className="px-3 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">BAGS</th>
+                  <th className="px-3 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Weight (kg)</th>
+                  <th className="px-3 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Meter (m)</th>
+                  <th className="px-3 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Color</th>
+                  <th className="px-3 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Sec Color</th>
+                  <th className="px-3 py-3 text-center"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-blue-900/10">
-                {lineItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-blue-900/5 transition-colors">
-                    <td className="p-2 border-r border-blue-900/10">
-                      <select 
-                        className="w-full bg-slate-800 border border-slate-700 text-sm text-white px-2 py-1 rounded focus:border-green-500 outline-none" 
-                        value={item.itemId} 
-                        onChange={(e) => updateLineItem(item.id, 'itemId', e.target.value)}
-                      >
-                        <option value="">Select Item</option>
-                        {masterData.items.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-2 border-r border-blue-900/10">
-                      <select 
-                        className="w-full bg-slate-800 border border-slate-700 text-sm text-white px-2 py-1 rounded focus:border-green-500 outline-none" 
-                        value={item.sizeId} 
-                        onChange={(e) => updateLineItem(item.id, 'sizeId', e.target.value)}
-                      >
-                        <option value="">Select Size</option>
-                        {masterData.sizes.map(m => <option key={m.id} value={m.id}>{m.value}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-2 border-r border-blue-900/10">
-                      <select 
-                        className="w-full bg-slate-800 border border-slate-700 text-sm text-white px-2 py-1 rounded focus:border-green-500 outline-none" 
-                        value={item.qualityId} 
-                        onChange={(e) => updateLineItem(item.id, 'qualityId', e.target.value)}
-                      >
-                        <option value="">Select Quality</option>
-                        {masterData.qualities.map(m => <option key={m.id} value={m.id}>{m.grade}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-2 border-r border-blue-900/10">
-                      <input 
-                        className="w-full bg-slate-800 border border-slate-700 text-sm text-white text-center px-1 py-1 rounded focus:border-green-500 outline-none" 
-                        step="0.01" 
-                        type="number" 
-                        placeholder="0.00"
-                        value={item.weightKg} 
-                        onChange={(e) => updateLineItem(item.id, 'weightKg', e.target.value)} 
-                      />
-                    </td>
-                    <td className="p-2 border-r border-blue-900/10">
-                      <input 
-                        className="w-full bg-slate-800 border border-slate-700 text-sm text-white text-center px-1 py-1 rounded focus:border-green-500 outline-none" 
-                        step="0.1" 
-                        type="number" 
-                        placeholder="0.0"
-                        value={item.lengthMeter} 
-                        onChange={(e) => updateLineItem(item.id, 'lengthMeter', e.target.value)} 
-                      />
-                    </td>
-                    <td className="p-2 border-r border-blue-900/10">
-                      <select 
-                        className="w-full bg-slate-800 border border-slate-700 text-sm text-white px-2 py-1 rounded focus:border-green-500 outline-none" 
-                        value={item.colorId} 
-                        onChange={(e) => updateLineItem(item.id, 'colorId', e.target.value)}
-                      >
-                        <option value="">Select Color</option>
-                        {masterData.colors.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-2 border-r border-blue-900/10">
-                       <select 
-                        className="w-full bg-slate-800 border border-slate-700 text-sm text-white px-2 py-1 rounded focus:border-green-500 outline-none" 
-                        value={item.secondaryColorId} 
-                        onChange={(e) => updateLineItem(item.id, 'secondaryColorId', e.target.value)}
-                      >
-                        <option value="">Optional</option>
-                        {masterData.colors.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                      </select>
-                    </td>
+              <tbody className="divide-y divide-outline/20">
+                {scannedEntries.map((item) => (
+                  <tr key={item.id} className="hover:bg-secondary/5 transition-colors">
+                    <td className="p-2 text-sm font-mono text-secondary">{item.sku}</td>
+                    <td className="p-2 text-sm text-on-surface">{item.item?.name || 'N/A'}</td>
+                    <td className="p-2 text-sm text-on-surface">{item.size?.value || 'N/A'}</td>
+                    <td className="p-2 text-sm text-on-surface"><span className="bg-secondary/10 text-secondary px-2 py-0.5 rounded text-[10px] font-bold">{item.quality?.grade || 'N/A'}</span></td>
+                    <td className="p-2 text-sm text-on-surface text-center font-bold">{item.bagsCount || 1}</td>
+                    <td className="p-2 text-sm text-on-surface text-center font-mono">{item.weightId}</td>
+                    <td className="p-2 text-sm text-on-surface text-center font-mono">{item.lengthMeter || '-'}</td>
+                    <td className="p-2 text-sm text-on-surface capitalize">{item.color?.name || 'N/A'}</td>
+                    <td className="p-2 text-sm text-on-surface capitalize">{item.secondaryColor?.name || '-'}</td>
                     <td className="p-2 text-center">
-                      <button className="text-slate-500 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-500/10" onClick={() => removeLineItem(item.id)}>
-                        <span className="material-symbols-outlined text-lg">delete</span>
+                      <button
+                        onClick={() => removeScannedEntry(item.id)}
+                        className="text-on-surface-variant hover:text-error transition-colors p-1"
+                      >
+                        <Trash2 size={16} />
                       </button>
                     </td>
                   </tr>
                 ))}
-                <tr className="bg-slate-900/50 opacity-50 hover:opacity-100 hover:bg-slate-800 transition-all cursor-pointer" onClick={addLineItem}>
-                  <td className="p-4 text-center" colSpan="8">
-                    <div className="flex items-center justify-center gap-2 text-slate-400 font-medium text-xs">
-                      <span className="material-symbols-outlined text-sm">add</span>
-                      CLICK TO ADD ANOTHER ITEM LINE
-                    </div>
-                  </td>
-                </tr>
+                {scannedEntries.length === 0 && (
+                  <tr>
+                    <td colSpan="10" className="p-8 text-center text-on-surface-variant text-sm">
+                      No items scanned. Scan a staged SKU to add it to the order.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-          <div className="bg-slate-900 p-6 border border-blue-900/20 rounded-xl shadow-lg">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Internal Logistic Notes</h3>
-            <textarea 
-              className="w-full h-32 bg-slate-800 border-slate-700 border text-white px-4 py-3 rounded text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition-all placeholder:text-slate-500" 
-              placeholder="Specify any technical requirements or handling instructions for production line staff..."
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-surface-container border border-outline/30 p-6 rounded-xl shadow">
+            <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-3">Internal Notes</label>
+            <textarea
+              className="w-full h-24 bg-surface-container-highest border border-outline text-on-surface px-4 py-3 rounded text-sm focus:border-secondary outline-none transition-all placeholder:text-on-surface-variant/50"
+              placeholder="Add any handling instructions or notes..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             ></textarea>
           </div>
-          <div className="space-y-4">
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded flex items-center gap-4">
-              <span className="material-symbols-outlined text-red-500" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
-              <p className="text-xs font-semibold text-red-500 uppercase tracking-wider">Inventory Alert: Industrial Coil stock is low (8 units remaining).</p>
+          <div className="space-y-3">
+            <div className="p-4 bg-error/10 border border-error/30 rounded flex gap-3">
+              <span className="text-error font-bold text-sm">⚠</span>
+              <p className="text-xs text-error font-semibold">Check inventory levels before confirming order</p>
             </div>
-            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded flex items-center gap-4">
-              <span className="material-symbols-outlined text-green-500" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-              <p className="text-xs font-semibold text-green-500 uppercase tracking-wider">Customer Credit Limit Verified: Approved for transaction.</p>
+            <div className="p-4 bg-secondary/10 border border-secondary/30 rounded flex gap-3">
+              <span className="text-secondary font-bold text-sm">✓</span>
+              <p className="text-xs text-secondary font-semibold">Order ready for production line assignment</p>
             </div>
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-8 pt-6 border-t border-outline/30 flex justify-end gap-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-8 py-3 rounded-lg text-on-surface-variant font-semibold text-sm hover:text-on-surface transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleGenerateOrder}
+            disabled={submitting || scannedEntries.length === 0}
+            className="bg-secondary text-on-secondary px-12 py-3 rounded-lg font-black text-sm tracking-widest shadow-lg shadow-secondary/20 hover:shadow-secondary/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 uppercase"
+          >
+            <span className="material-symbols-outlined text-[18px]">save</span>
+            {submitting ? 'Processing...' : isEditing ? 'Update Order' : 'Generate Order'}
+          </button>
         </div>
       </div>
     </div>

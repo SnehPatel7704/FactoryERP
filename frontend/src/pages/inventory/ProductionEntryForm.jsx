@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '../../hooks/useApi';
 import Loader from '../../components/ui/Loader';
 import ErrorMessage from '../../components/ui/ErrorMessage';
+import { StatusBadge } from '../../utils/statusBadge';
 import { X, Save } from 'lucide-react';
 
 const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
   // API hooks
-  const { data: masterData, loading, error, execute: fetchMaster } = useApi('/master/all', {}, { items: [], colors: [], sizes: [], qualities: [] });
+  const { data: masterData, loading, error, execute: fetchMaster } = useApi('/master/all', {}, { items: [], colors: [], sizes: [], qualities: [], weights: [], meters: [] });
   const { loading: submitting, error: submitError, execute: executeSubmit } = useApi('', {}, null);
-  const { data: dailyStats, execute: fetchDailyStats } = useApi('/reports/daily', {}, { totalWeightKg: 0, totalMeterM: 0, totalEntries: 0 });
   const { data: recentEntries, execute: fetchRecentEntries } = useApi('/inventory/production/recent', {}, []);
 
   const isEditing = !!entry;
@@ -18,15 +18,14 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
 
   // Form state
   const [formData, setFormData] = useState({
-    sizeId: '',
     qualityId: '',
+    sizeId: '',
     itemId: '',
+    weightId: '',
+    meterId: '',
     colorId: '',
     secondaryColorId: '',
     accentColorId: '',
-    batchNumber: '',
-    weightKg: '',
-    lengthMeter: '',
     entryDate: new Date().toISOString().split('T')[0]
   });
 
@@ -44,15 +43,14 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
   useEffect(() => {
     if (isEditing && entry) {
       setFormData({
-        sizeId: entry.sizeId || '',
         qualityId: entry.qualityId || '',
+        sizeId: entry.sizeId || '',
         itemId: entry.itemId || '',
+        weightId: entry.weightId || '',
+        meterId: entry.meterId || '',
         colorId: entry.colorId || '',
         secondaryColorId: entry.secondaryColorId || '',
         accentColorId: entry.accentColorId || '',
-        batchNumber: entry.batchNumber || '',
-        weightKg: entry.weightKg || '',
-        lengthMeter: entry.lengthMeter || '',
         entryDate: entry.entryDate ? entry.entryDate.split('T')[0] : new Date().toISOString().split('T')[0]
       });
     }
@@ -62,7 +60,7 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
     const { name, value } = e.target;
 
     // Validate numeric fields
-    if (name === 'weightKg' || name === 'lengthMeter') {
+    if (name === 'weightId' || name === 'meterId') {
       const numValue = parseFloat(value);
       if (value === '') {
         setFormData({ ...formData, [name]: '' });
@@ -85,6 +83,7 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
     }
     const selectedEntry = recentEntries.find(e => e.id === entryId);
     if (selectedEntry) {
+      console.log(selectedEntry);
       setFormData({
         sizeId: selectedEntry.sizeId || '',
         qualityId: selectedEntry.qualityId || '',
@@ -92,9 +91,8 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
         colorId: selectedEntry.colorId || '',
         secondaryColorId: selectedEntry.secondaryColorId || '',
         accentColorId: selectedEntry.accentColorId || '',
-        batchNumber: selectedEntry.batchNumber ? `${selectedEntry.batchNumber}-copy` : '',
-        weightKg: '',
-        lengthMeter: '',
+        weightId: selectedEntry.weightId || '',
+        meterId: selectedEntry.meterId || '',
         entryDate: new Date().toISOString().split('T')[0]
       });
       setSelectedTemplate('');
@@ -112,9 +110,8 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
       colorId: '',
       secondaryColorId: '',
       accentColorId: '',
-      batchNumber: '',
-      weightKg: '',
-      lengthMeter: '',
+      weightId: '',
+      meterId: '',
       entryDate: new Date().toISOString().split('T')[0]
     });
   };
@@ -122,32 +119,22 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate batch number
-    if (!formData.batchNumber || formData.batchNumber.trim().length === 0) {
-      alert('Batch/Slot Number is required');
-      return;
-    }
-
-    if (formData.batchNumber.length > 50) {
-      alert('Batch Number must be less than 50 characters');
-      return;
-    }
-
     // Validate numeric values
-    const weightKg = parseFloat(formData.weightKg);
-    const lengthMeter = parseFloat(formData.lengthMeter);
+    const weightId = parseFloat(formData.weightId);
+    const meterId = parseFloat(formData.meterId);
 
-    if (weightKg <= 0 || isNaN(weightKg)) {
+    if (weightId <= 0 || isNaN(weightId)) {
       alert('Weight must be a positive number');
       return;
     }
 
-    if (lengthMeter <= 0 || isNaN(lengthMeter)) {
+    if (meterId <= 0 || isNaN(meterId)) {
+      console.log(meterId);
       alert('Meter must be a positive number');
       return;
     }
 
-    if (weightKg > 999999 || lengthMeter > 999999) {
+    if (weightId > 999999 || meterId > 999999) {
       alert('Values must be less than 1,000,000');
       return;
     }
@@ -159,9 +146,8 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
       colorId: formData.colorId,
       secondaryColorId: formData.secondaryColorId || null,
       accentColorId: formData.accentColorId || null,
-      batchNumber: formData.batchNumber.trim(),
-      weightKg: weightKg,
-      lengthMeter: lengthMeter,
+      weightId: formData.weightId,
+      meterId: formData.meterId,
       entryDate: formData.entryDate,
       shiftCode: null,
       machineCenter: null,
@@ -232,7 +218,7 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
                       const colorName = entry.color?.name || 'No color';
                       return (
                         <option key={entry.id} value={entry.id}>
-                          {entry.item?.name || 'N/A'} - {entry.batchNumber || 'N/A'} ({colorName}) - {new Date(entry.entryDate).toLocaleDateString('en-IN')}
+                          {entry.item?.name || 'N/A'} ({colorName}) - {new Date(entry.entryDate).toLocaleDateString('en-IN')}
                         </option>
                       );
                     })}
@@ -250,16 +236,26 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Size */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Size *</label>
-              <select required name="sizeId" value={formData.sizeId} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all">
-                <option value="">Select Size</option>
-                {masterData.sizes.map(m => <option key={m.id} value={m.id}>{m.value}</option>)}
-              </select>
-            </div>
+          {/* Display SKU if editing (read-only) */}
+          {isEditing && entry?.sku && (
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
+                <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 block mb-2">📦 Stock Keeping Unit (SKU)</label>
+                <div className="bg-slate-800 border border-green-500/50 rounded-lg px-4 py-3 font-mono text-green-400 text-lg tracking-wider">
+                  {entry.sku}
+                </div>
+              </div>
 
+              <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 block mb-2">📊 Current Status</label>
+                <div className="bg-slate-800 border border-blue-500/50 rounded-lg px-4 py-3 font-semibold">
+                  <StatusBadge status={entry.status} className="text-xs" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Quality */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Quality *</label>
@@ -269,12 +265,39 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
               </select>
             </div>
 
+            {/* Size */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Size *</label>
+              <select required name="sizeId" value={formData.sizeId} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all">
+                <option value="">Select Size</option>
+                {masterData.sizes.map(m => <option key={m.id} value={m.id}>{m.value}</option>)}
+              </select>
+            </div>
+
             {/* Item */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Item *</label>
               <select required name="itemId" value={formData.itemId} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all">
                 <option value="">Select Item</option>
                 {masterData.items.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+
+            {/* Weight   */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Weight *</label>
+              <select required name="weightId" value={formData.weightId} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all">
+                <option value="">Select Weight</option>
+                {masterData.weights.map(m => <option key={m.id} value={m.id}>{m.value}</option>)}
+              </select>
+            </div>
+
+            {/* Meter */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Meter *</label>
+              <select required name="meterId" value={formData.meterId} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all">
+                <option value="">Select Meter</option>
+                {masterData.meters.map(m => <option key={m.id} value={m.id}>{m.value}</option>)}
               </select>
             </div>
 
@@ -314,22 +337,10 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
               </div>
             </div>
 
-            {/* Batch Number */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Batch / Slot Number *</label>
-              <input required name="batchNumber" value={formData.batchNumber} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all" placeholder="e.g., B-102 / S-4" type="text" />
-            </div>
-
             {/* Production Weight */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Production (Kg) *</label>
-              <input required name="weightKg" value={formData.weightKg} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all" placeholder="0.00" step="0.01" type="number" min="0" max="999999" />
-            </div>
-
-            {/* Production Meter */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Meter (m) *</label>
-              <input required name="lengthMeter" value={formData.lengthMeter} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all" placeholder="0.00" step="0.01" type="number" min="0" max="999999" />
+              <input required name="weightId" value={formData.weightId} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all" placeholder="0.00" step="0.01" type="number" min="0" max="999999" />
             </div>
 
             {/* Date */}
@@ -350,7 +361,7 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
               )}
               <button
                 type="submit"
-                disabled={submitting || !formData.itemId || !formData.sizeId || !formData.qualityId || !formData.colorId || !formData.weightKg || !formData.lengthMeter}
+                disabled={submitting || !formData.itemId || !formData.sizeId || !formData.qualityId || !formData.colorId || !formData.weightId || !formData.meterId}
                 className="bg-green-500 text-slate-900 px-12 py-3 rounded-lg font-black text-sm tracking-widest shadow-lg shadow-green-500/10 hover:shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 title="Fill all required fields"
               >

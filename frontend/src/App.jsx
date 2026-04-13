@@ -17,11 +17,11 @@ import ManagementMaster from './pages/master/ManagementMaster';
 
 // 3. Sales & Orders
 import SalesOrderPage from './pages/sales/SalesOrderPage';
-import SalesOrderEdit from './pages/sales/SalesOrderEdit';
 
 // 4. Dispatch & Logistics
 import PreDispatchStaging from './pages/sales/PreDispatchStaging';
-import DispatchChallanGeneration from './pages/sales/DispatchGeneration';
+import DispatchChallanGeneration from './pages/dispatch/DispatchChallanGeneration';
+import DispatchChallanGenerationPage from './pages/Extra/DispatchChallanGenerationPage';
 import DispatchReturn from './pages/dispatch/DispatchReturn';
 
 // 5. Production
@@ -55,11 +55,11 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        
+
         {/* Secure Application Core */}
         <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
-          
+
           {/* Dashboard */}
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="dashboard/analytics" element={<AnalyticsDashboard />} />
@@ -84,12 +84,11 @@ function App() {
 
 
           {/* Sales & Dispatch */}
-          <Route path="sales/new" element={<SalesOrderPage />} />
-          <Route path="sales/edit" element={<SalesOrderEdit />} />
-          <Route path="sales/edit/:id" element={<SalesOrderEdit />} />
+          <Route path="sales/order" element={<SalesOrderPage />} />
           <Route path="sales/staging" element={<PreDispatchStaging />} />
           <Route path="sales/dispatch" element={<DispatchChallanGeneration />} />
-          
+          <Route path="sales/dispatchPage" element={<DispatchChallanGenerationPage />} />
+
           {/* Returns */}
           <Route path="returns/production" element={<ProductionReturn />} />
           <Route path="returns/dispatch" element={<DispatchReturn />} />

@@ -21,7 +21,7 @@ const ProductionReturn = () => {
     qualityId: '',
     sizeId: '',
     colorId: '',
-    weightKg: '',
+    weightId: '',
     lengthMeter: '0',
     bagsCount: '1'
   });
@@ -56,10 +56,10 @@ const ProductionReturn = () => {
     try {
       const response = await apiClient.get('/inventory/production');
       const entries = response.data || response;
-      
+
       // Find batch by number
       const batch = entries.find(e => e.batchNumber === batchNumber.trim());
-      
+
       if (!batch) {
         alert('Batch not found');
         setBatchSearching(false);
@@ -74,7 +74,7 @@ const ProductionReturn = () => {
         qualityId: batch.qualityId || '',
         sizeId: batch.sizeId || '',
         colorId: batch.colorId || '',
-        weightKg: batch.weightKg || '',
+        weightId: batch.weightId || '',
         lengthMeter: batch.lengthMeter || '0'
       }));
 
@@ -90,15 +90,15 @@ const ProductionReturn = () => {
     if (!formData.itemId || !formData.qualityId || !formData.sizeId || !formData.colorId) {
       return alert("Foreign dependencies (Item, Quality, Size, Color) required for return sequence.");
     }
-    
+
     if (!window.confirm("Initialize negative offset sequence on Database?")) return;
 
     try {
       await apiClient.post('/inventory/production/return', formData);
       alert("Defective return isolated into DB logging");
-      setFormData({...formData, weightKg:'', operatorId:'', batchNumber:''});
+      setFormData({ ...formData, weightId: '', operatorId: '', batchNumber: '' });
       setBatchNumber('');
-    } catch(err) {
+    } catch (err) {
       alert('Error: ' + err.message);
     }
   };
@@ -124,7 +124,7 @@ const ProductionReturn = () => {
             <div className="bg-error/10 text-error/80 text-xs p-3 rounded mt-4 border border-error/20 inline-block w-full text-center font-bold">
               Submitting this form deducts from active usable inventory!
             </div>
-            
+
             {/* Batch Search Section */}
             <div className="bg-error/5 border border-error/20 rounded-lg p-4 mb-4">
               <label className="text-[10px] font-semibold text-slate-400 tracking-[0.05em] uppercase block mb-2">Search by Batch Number</label>
@@ -148,7 +148,7 @@ const ProductionReturn = () => {
               </div>
               <p className="text-[10px] text-slate-500 mt-2">Auto-fills Item, Quality, Size, and Color from batch</p>
             </div>
-            
+
             <Input label="QC Operator ID" name="operatorId" placeholder="Badge Number" value={formData.operatorId} onChange={handleChange} />
 
             <div className="flex flex-col gap-1.5 border-t border-outline/20 pt-4 mt-2">
@@ -184,9 +184,9 @@ const ProductionReturn = () => {
               </select>
             </div>
 
-            <Input label="Damaged Weight (Kg)" name="weightKg" type="number" step="0.01" value={formData.weightKg} onChange={handleChange} />
-            
-            
+            <Input label="Damaged Weight (Kg)" name="weightId" type="number" step="0.01" value={formData.weightId} onChange={handleChange} />
+
+
           </div>
         </div>
       </div>

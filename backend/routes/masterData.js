@@ -11,8 +11,10 @@ router.get('/all', async (req, res) => {
     const colors = await req.prisma.color.findMany();
     const sizes = await req.prisma.size.findMany();
     const qualities = await req.prisma.quality.findMany();
+    const weights = await req.prisma.weightConfig.findMany();
+    const meters = await req.prisma.meterConfig.findMany();
 
-    res.json({ items, colors, sizes, qualities });
+    res.json({ items, colors, sizes, qualities, weights, meters });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -33,7 +35,7 @@ router.post('/colors', async (req, res) => {
     const { name, hexCode } = req.body;
     const missing = validateRequired({ name }, ['name']);
     if (missing) return handleValidationError(res, missing);
-    
+
     const newColor = await req.prisma.color.create({
       data: { name, hexCode }
     });
@@ -71,7 +73,7 @@ router.post('/sizes', async (req, res) => {
     const { value } = req.body;
     const missing = validateRequired({ value }, ['value']);
     if (missing) return handleValidationError(res, missing);
-    
+
     const newSize = await req.prisma.size.create({
       data: { value }
     });
@@ -109,7 +111,7 @@ router.post('/qualities', async (req, res) => {
     const { grade } = req.body;
     const missing = validateRequired({ grade }, ['grade']);
     if (missing) return handleValidationError(res, missing);
-    
+
     const newQuality = await req.prisma.quality.create({
       data: { grade }
     });
@@ -147,7 +149,7 @@ router.post('/items', async (req, res) => {
     const { code, name, description } = req.body;
     const missing = validateRequired({ code, name }, ['code', 'name']);
     if (missing) return handleValidationError(res, missing);
-    
+
     const newItem = await req.prisma.item.create({
       data: { code, name, description }
     });
@@ -173,61 +175,61 @@ router.put('/items/:id', async (req, res) => {
 // --- DELETES ---
 router.delete('/colors/:id', async (req, res) => {
   try { await req.prisma.color.delete({ where: { id: req.params.id } }); res.json({ success: true }); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.delete('/sizes/:id', async (req, res) => {
   try { await req.prisma.size.delete({ where: { id: req.params.id } }); res.json({ success: true }); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.delete('/qualities/:id', async (req, res) => {
   try { await req.prisma.quality.delete({ where: { id: req.params.id } }); res.json({ success: true }); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.delete('/items/:id', async (req, res) => {
   try { await req.prisma.item.delete({ where: { id: req.params.id } }); res.json({ success: true }); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- WEIGHTS ---
 router.get('/weights', async (req, res) => {
   try { res.json(await req.prisma.weightConfig.findMany()); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.post('/weights', async (req, res) => {
-  try { 
-    res.json(await req.prisma.weightConfig.create({ 
-      data: { 
+  try {
+    res.json(await req.prisma.weightConfig.create({
+      data: {
         value: parseFloat(req.body.value),
         type: req.body.type || "Standard"
-      } 
-    })); 
+      }
+    }));
   }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.delete('/weights/:id', async (req, res) => {
   try { await req.prisma.weightConfig.delete({ where: { id: req.params.id } }); res.json({ success: true }); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- METERS ---
 router.get('/meters', async (req, res) => {
   try { res.json(await req.prisma.meterConfig.findMany()); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.post('/meters', async (req, res) => {
-  try { 
-    res.json(await req.prisma.meterConfig.create({ 
-      data: { 
+  try {
+    res.json(await req.prisma.meterConfig.create({
+      data: {
         value: parseFloat(req.body.value),
         type: req.body.type || "Industrial"
-      } 
-    })); 
+      }
+    }));
   }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.delete('/meters/:id', async (req, res) => {
   try { await req.prisma.meterConfig.delete({ where: { id: req.params.id } }); res.json({ success: true }); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- USERS ---
@@ -237,7 +239,7 @@ router.get('/users', async (req, res) => {
       select: { id: true, email: true, role: true, createdAt: true }
     });
     res.json(users);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/users', async (req, res) => {
@@ -248,12 +250,12 @@ router.post('/users', async (req, res) => {
       data: { email, password: hashedPassword, role: role || 'operator' }
     });
     res.json({ id: newUser.id, email: newUser.email, role: newUser.role });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.delete('/users/:id', async (req, res) => {
   try { await req.prisma.user.delete({ where: { id: req.params.id } }); res.json({ success: true }); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 export default router;

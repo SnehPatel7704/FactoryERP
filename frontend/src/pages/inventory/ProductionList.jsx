@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '../../hooks/useApi';
 import Loader from '../../components/ui/Loader';
 import ErrorMessage from '../../components/ui/ErrorMessage';
+import { StatusBadge } from '../../utils/statusBadge';
 import { ChevronDown, Edit2, Filter, Plus } from 'lucide-react';
 
 const ProductionList = ({ onAddNew, onEditEntry }) => {
@@ -12,15 +13,16 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
 
   // API hooks
   const { data: allEntries, loading, error, execute: fetchAllEntries } = useApi('/inventory/production', {}, []);
-  const { data: dailyStats, execute: fetchDailyStats } = useApi('/reports/daily', {}, { totalWeightKg: 0, totalMeterM: 0, totalEntries: 0 });
+  const { data: dailyStats, execute: fetchDailyStats } = useApi('/reports/daily', {}, { totalweightId: 0, totalMeterM: 0, totalEntries: 0 });
   const { data: masterData, loading: masterLoading, error: masterError, execute: fetchMasterData } = useApi('/master/all', {}, { items: [], colors: [], sizes: [], qualities: [] });
 
   // State
   const [displayEntries, setDisplayEntries] = useState([]);
-  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
+  const [filterDate, setFilterDate] = useState(null); // Default to today
   const [filterItem, setFilterItem] = useState('');
   const [filterQuality, setFilterQuality] = useState('');
   const [filterSize, setFilterSize] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch data on mount
@@ -63,11 +65,16 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
       filtered = filtered.filter(entry => entry.sizeId === filterSize);
     }
 
+    // Filter by status
+    if (filterStatus) {
+      filtered = filtered.filter(entry => entry.status === filterStatus);
+    }
+
     // Sort by date descending (newest first)
     filtered.sort((a, b) => new Date(b.entryDate || b.createdAt) - new Date(a.entryDate || a.createdAt));
 
     setDisplayEntries(filtered);
-  }, [allEntries, filterDate, filterItem, filterQuality, filterSize]);
+  }, [allEntries, filterDate, filterItem, filterQuality, filterSize, filterStatus]);
 
   // Clear all filters
   const handleClearFilters = () => {
@@ -75,6 +82,7 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
     setFilterItem('');
     setFilterQuality('');
     setFilterSize('');
+    setFilterStatus('');
   };
 
   // Get filtered stats for the day
@@ -84,7 +92,7 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
     }
     return {
       entries: displayEntries.length,
-      totalWeight: displayEntries.reduce((sum, e) => sum + (parseFloat(e.weightKg) || 0), 0),
+      totalWeight: displayEntries.reduce((sum, e) => sum + (parseFloat(e.weightId) || 0), 0),
       totalMeter: displayEntries.reduce((sum, e) => sum + (parseFloat(e.lengthMeter) || 0), 0)
     };
   };
@@ -130,7 +138,7 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
           </div>
 
           {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4 pb-4 border-b border-blue-900/30">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-4 pb-4 border-b border-blue-900/30">
               {/* Date Filter */}
               <div>
                 <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 block mb-2">Date</label>
@@ -187,6 +195,22 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
                 </select>
               </div>
 
+              {/* Status Filter */}
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 block mb-2">Status</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 py-2 outline-none transition-all"
+                >
+                  <option value="">All Status</option>
+                  <option value="created">Created</option>
+                  <option value="staged">Staged</option>
+                  <option value="dispatched">Dispatched</option>
+                  <option value="returned">Returned</option>
+                </select>
+              </div>
+
               {/* Clear Filters Button */}
               <div className="flex items-end">
                 <button
@@ -207,9 +231,12 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
             <table className="w-full text-left">
               <thead className="bg-slate-800/80 border-b border-blue-900/20">
                 <tr>
+                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">SKU</th>
+                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Item</th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Batch</th>
+                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Bags</th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Quality</th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Size</th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Weight (Kg)</th>
@@ -223,9 +250,18 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
                   displayEntries.map((entry) => (
                     <tr
                       key={entry.id}
-                      className={`hover:bg-blue-900/5 transition-all ${isAdmin ? 'cursor-pointer' : ''}`}
-                      onClick={() => isAdmin && onEditEntry(entry)}
+                      // className={`hover:bg-blue-900/5 transition-all ${isAdmin ? 'cursor-pointer' : ''}`}
+                      className={`hover:bg-blue-900/5 transition-all`}
+                    // onClick={() => isAdmin && onEditEntry(entry)}
                     >
+                      <td className="px-6 py-4 text-sm">
+                        <span className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-xs font-mono border border-blue-500/40">
+                          {entry.sku || '-'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <StatusBadge status={entry.status} className="text-xs" />
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-400">
                         {entry.entryDate ? new Date(entry.entryDate).toLocaleDateString() : 'N/A'}
                       </td>
@@ -235,6 +271,9 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
                       <td className="px-6 py-4 text-sm font-mono text-slate-500">
                         {entry.batchNumber || '-'}
                       </td>
+                      <td className="px-6 py-4 text-sm font-bold text-white text-center">
+                        {entry.bagsCount || 1}
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-300">
                         {entry.quality?.grade || 'N/A'}
                       </td>
@@ -242,7 +281,7 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
                         {entry.size?.value || 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-right text-white">
-                        {(parseFloat(entry.weightKg) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        {(parseFloat(entry.weightId) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-right text-white">
                         {(parseFloat(entry.lengthMeter) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
@@ -297,7 +336,7 @@ const ProductionList = ({ onAddNew, onEditEntry }) => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={isAdmin ? 9 : 8} className="px-6 py-12 text-center text-slate-500 text-sm">
+                    <td colSpan={isAdmin ? 11 : 10} className="px-6 py-12 text-center text-slate-500 text-sm">
                       No production entries found for the selected filters.
                     </td>
                   </tr>

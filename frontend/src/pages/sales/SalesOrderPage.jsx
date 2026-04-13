@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import SalesOrderList from './SalesOrderList';
 import SalesOrderEntry from './SalesOrderEntry';
+import DispatchHistory from './DispatchHistory';
+import DispatchChallanGeneration from '../dispatch/DispatchChallanGeneration';
 
 /**
  * SalesOrderPage - Main orchestrator component
@@ -11,9 +13,11 @@ import SalesOrderEntry from './SalesOrderEntry';
  * 3. User clicks row or "Edit" button (admin only) → Show SalesOrderEntry in edit mode
  * 4. Form submission → Refresh list and close form
  * 5. Can navigate between list and form views
+ * 6. View dispatch history for completed orders
+ * 7. Generate challan for selected order
  */
 const SalesOrderPage = () => {
-  const [view, setView] = useState('list'); // 'list' or 'form'
+  const [view, setView] = useState('list'); // 'list', 'form', 'dispatch', 'challan'
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -52,6 +56,30 @@ const SalesOrderPage = () => {
     setView('list');
   };
 
+  // Handle view dispatch history
+  const handleViewDispatchHistory = () => {
+    setView('dispatch');
+  };
+
+  // Handle back to list from dispatch
+  const handleBackToList = () => {
+    setView('list');
+  };
+
+  // Handle generate challan
+  const handleGenerateChallan = (order) => {
+    setSelectedOrder(order);
+    setView('challan');
+  };
+
+  // Handle challan generation success
+  const handleChallanSuccess = () => {
+    // Refresh list and go back
+    setRefreshTrigger(prev => prev + 1);
+    setSelectedOrder(null);
+    setView('list');
+  };
+
   return (
     <>
       {view === 'list' ? (
@@ -59,6 +87,27 @@ const SalesOrderPage = () => {
           key={refreshTrigger}
           onAddNew={handleAddNew}
           onEditOrder={handleEditOrder}
+          onViewDispatch={handleViewDispatchHistory}
+          onGenerateChallan={handleGenerateChallan}
+        />
+      ) : view === 'dispatch' ? (
+        <>
+          <div className="p-4 bg-slate-900 border-b border-slate-800">
+            <button
+              onClick={handleBackToList}
+              className="flex items-center gap-2 text-blue-400 hover:text-blue-300 font-semibold transition-colors"
+            >
+              <span className="material-symbols-outlined">arrow_back</span>
+              Back to Orders
+            </button>
+          </div>
+          <DispatchHistory />
+        </>
+      ) : view === 'challan' ? (
+        <DispatchChallanGeneration
+          salesOrderId={selectedOrder?.orderNumber}
+          onBack={handleBackToList}
+          onSuccess={handleChallanSuccess}
         />
       ) : (
         <SalesOrderEntry

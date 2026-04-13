@@ -7,7 +7,7 @@ const ProductionEntry = () => {
   // Use custom API hook for initialization
   const { data: masterData, loading, error, execute: fetchMaster } = useApi('/master/all', {}, { items: [], colors: [], sizes: [], qualities: [] });
   const { loading: submitting, error: submitError, execute: executeSubmit } = useApi('', {}, null);
-  const { data: dailyStats, execute: fetchDailyStats } = useApi('/reports/daily', {}, { totalWeightKg: 0, totalMeterM: 0, totalEntries: 0 });
+  const { data: dailyStats, execute: fetchDailyStats } = useApi('/reports/daily', {}, { totalweightId: 0, totalMeterM: 0, totalEntries: 0 });
   const { data: recentEntries, execute: fetchRecentEntries } = useApi('/inventory/production/recent', {}, []);
 
   const [formData, setFormData] = useState({
@@ -18,8 +18,9 @@ const ProductionEntry = () => {
     secondaryColorId: '',
     accentColorId: '',
     batchNumber: '',
-    weightKg: '',
+    weightId: '',
     lengthMeter: '',
+    bagsCount: '',
     entryDate: new Date().toISOString().split('T')[0]
   });
 
@@ -33,9 +34,9 @@ const ProductionEntry = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Validate numeric fields
-    if (name === 'weightKg' || name === 'lengthMeter') {
+    if (name === 'weightId' || name === 'lengthMeter' || name === 'bagsCount') {
       const numValue = parseFloat(value);
       if (value === '') {
         setFormData({ ...formData, [name]: '' });
@@ -66,8 +67,9 @@ const ProductionEntry = () => {
         secondaryColorId: selectedEntry.secondaryColorId || '',
         accentColorId: selectedEntry.accentColorId || '',
         batchNumber: selectedEntry.batchNumber ? `${selectedEntry.batchNumber}-copy` : '',
-        weightKg: '',
+        weightId: '',
         lengthMeter: '',
+        bagsCount: '',
         entryDate: new Date().toISOString().split('T')[0]
       });
       setSelectedTemplate('');
@@ -86,45 +88,47 @@ const ProductionEntry = () => {
       secondaryColorId: '',
       accentColorId: '',
       batchNumber: '',
-      weightKg: '',
+      weightId: '',
       lengthMeter: '',
+      bagsCount: '',
       entryDate: new Date().toISOString().split('T')[0]
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate batch number
     if (!formData.batchNumber || formData.batchNumber.trim().length === 0) {
       alert('Batch/Slot Number is required');
       return;
     }
-    
+
     if (formData.batchNumber.length > 50) {
       alert('Batch Number must be less than 50 characters');
       return;
     }
-    
+
     // Validate numeric values
-    const weightKg = parseFloat(formData.weightKg);
+    const weightId = parseFloat(formData.weightId);
     const lengthMeter = parseFloat(formData.lengthMeter);
-    
-    if (weightKg <= 0 || isNaN(weightKg)) {
+    const bagsCount = parseInt(formData.bagsCount) || 0;
+
+    if (weightId <= 0 || isNaN(weightId)) {
       alert('Weight must be a positive number');
       return;
     }
-    
+
     if (lengthMeter <= 0 || isNaN(lengthMeter)) {
       alert('Meter must be a positive number');
       return;
     }
-    
-    if (weightKg > 999999 || lengthMeter > 999999) {
+
+    if (weightId > 999999 || lengthMeter > 999999) {
       alert('Values must be less than 1,000,000');
       return;
     }
-    
+
     const payload = {
       itemId: formData.itemId,
       sizeId: formData.sizeId,
@@ -133,8 +137,9 @@ const ProductionEntry = () => {
       secondaryColorId: formData.secondaryColorId || null,
       accentColorId: formData.accentColorId || null,
       batchNumber: formData.batchNumber.trim(),
-      weightKg: weightKg,
+      weightId: weightId,
       lengthMeter: lengthMeter,
+      bagsCount: bagsCount || 1,
       entryDate: formData.entryDate,
       shiftCode: null,
       machineCenter: null,
@@ -164,7 +169,7 @@ const ProductionEntry = () => {
     <div className="pt-2 pb-12 w-full min-h-screen">
       <div className="max-w-7xl mx-auto w-full">
         {submitError && <ErrorMessage error={submitError} />}
-        
+
         {/* Action Header */}
         <div className="flex justify-between items-end mb-8">
           <div>
@@ -195,8 +200,8 @@ const ProductionEntry = () => {
                   <div className="flex gap-3 items-end">
                     <div className="flex-1">
                       <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 block mb-2">Load from Previous Order</label>
-                      <select 
-                        value={selectedTemplate} 
+                      <select
+                        value={selectedTemplate}
                         onChange={(e) => setSelectedTemplate(e.target.value)}
                         className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 py-2 outline-none transition-all"
                       >
@@ -222,7 +227,7 @@ const ProductionEntry = () => {
                   </div>
                 </div>
               )}
-              
+
               <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
                 {/* Size */}
                 <div className="space-y-1.5">
@@ -296,13 +301,19 @@ const ProductionEntry = () => {
                 {/* Production Weight */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Production (Kg)</label>
-                  <input required name="weightKg" value={formData.weightKg} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all" placeholder="0.00" step="0.01" type="number" min="0" max="999999" />
+                  <input required name="weightId" value={formData.weightId} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all" placeholder="0.00" step="0.01" type="number" min="0" max="999999" />
                 </div>
-                
-                 {/* Production Meter */}
+
+                {/* Production Meter */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Meter (m)</label>
                   <input required name="lengthMeter" value={formData.lengthMeter} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all" placeholder="0.00" step="0.01" type="number" min="0" max="999999" />
+                </div>
+
+                {/* Bags Count */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">No. of Bags</label>
+                  <input required name="bagsCount" value={formData.bagsCount} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all" placeholder="1" step="1" type="number" min="1" max="1000" />
                 </div>
 
                 {/* Date */}
@@ -313,9 +324,9 @@ const ProductionEntry = () => {
 
                 <div className="md:col-span-3 pt-6 flex justify-end gap-4 border-t border-blue-900/30 mt-4">
                   <button type="button" onClick={handleClear} className="px-8 py-3 rounded-lg text-slate-400 font-semibold text-sm hover:text-white transition-colors">Clear Fields</button>
-                  <button 
-                    type="submit" 
-                    disabled={submitting || !formData.itemId || !formData.sizeId || !formData.qualityId || !formData.colorId || !formData.weightKg || !formData.lengthMeter}
+                  <button
+                    type="submit"
+                    disabled={submitting || !formData.itemId || !formData.sizeId || !formData.qualityId || !formData.colorId || !formData.weightId || !formData.lengthMeter || !formData.bagsCount}
                     className="bg-green-500 text-slate-900 px-12 py-3 rounded-lg font-black text-sm tracking-widest shadow-lg shadow-green-500/10 hover:shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Fill all required fields"
                   >
@@ -333,7 +344,7 @@ const ProductionEntry = () => {
               <h5 className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-4">Daily Throughput</h5>
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-4xl font-extrabold text-white">{(dailyStats?.totalWeightKg || 0).toLocaleString('en-IN', { maximumFractionDigits: 1 })}</p>
+                  <p className="text-4xl font-extrabold text-white">{(dailyStats?.totalweightId || 0).toLocaleString('en-IN', { maximumFractionDigits: 1 })}</p>
                   <p className="text-[10px] text-green-500 font-bold">KG PRODUCED TODAY</p>
                 </div>
                 <div className="bg-green-500/10 text-green-500 px-2 py-1 rounded text-[10px] font-bold">{dailyStats?.totalEntries || 0} entries</div>
@@ -358,7 +369,7 @@ const ProductionEntry = () => {
               <div className="px-8 py-6 flex justify-between items-center bg-blue-900/5 border-b border-blue-900/20">
                 <h4 className="text-lg font-bold text-white">Recent Inventory Updates (Last 10)</h4>
                 <div className="flex gap-2">
-                  <button 
+                  <button
                     onClick={() => fetchRecentEntries()}
                     className="text-[10px] font-bold text-blue-400 uppercase tracking-widest hover:text-blue-300 transition-colors"
                     title="Refresh the table"
@@ -387,7 +398,7 @@ const ProductionEntry = () => {
                           <td className="px-8 py-4 text-sm text-slate-400">{entry.entryDate ? new Date(entry.entryDate).toLocaleDateString('en-IN') : 'N/A'}</td>
                           <td className="px-8 py-4 text-sm font-semibold text-white">{entry.item?.name || 'N/A'}</td>
                           <td className="px-8 py-4 text-sm font-mono text-slate-500">{entry.batchNumber || '-'}</td>
-                          <td className="px-8 py-4 text-sm text-white font-bold text-right">{(entry.weightKg || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                          <td className="px-8 py-4 text-sm text-white font-bold text-right">{(entry.weightId || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                           <td className="px-8 py-4 text-center"><span className="bg-green-500/10 text-green-500 border border-green-500/20 text-[10px] font-bold px-3 py-1 rounded-sm uppercase">✓ Recorded</span></td>
                         </tr>
                       ))

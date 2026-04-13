@@ -1,11 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
 datasource db {
   provider = "mysql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 // Master Data
@@ -29,19 +29,19 @@ model Item {
   updatedAt   DateTime @updatedAt
 
   // Many-to-Many relations
-  colors      Color[]
-  sizes       Size[]
-  qualities   Quality[]
+  colors    Color[]
+  sizes     Size[]
+  qualities Quality[]
 
   lineItems         LineItem[]
   productionEntries ProductionEntry[]
 }
 
 model Color {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  hexCode     String?
-  items       Item[]
+  id                String            @id @default(uuid())
+  name              String            @unique
+  hexCode           String?
+  items             Item[]
   lineItems         LineItem[]
   productionEntries ProductionEntry[]
   secondaryEntries  ProductionEntry[] @relation("secondary")
@@ -49,128 +49,135 @@ model Color {
 }
 
 model Size {
-  id          String   @id @default(uuid())
-  value       String   @unique // e.g., "200mm"
-  items       Item[]
+  id                String            @id @default(uuid())
+  value             String            @unique // e.g., "200mm"
+  items             Item[]
   lineItems         LineItem[]
   productionEntries ProductionEntry[]
 }
 
 model Quality {
-  id          String   @id @default(uuid())
-  grade       String   @unique // e.g., "Grade A+"
-  items       Item[]
+  id                String            @id @default(uuid())
+  grade             String            @unique // e.g., "Grade A+"
+  items             Item[]
   lineItems         LineItem[]
   productionEntries ProductionEntry[]
 }
 
 model WeightConfig {
-  id          String   @id @default(uuid())
-  value       Float    // e.g., 10.5
-  type        String   @default("Standard")
-  isStandard  Boolean  @default(true)
-  
+  id              String            @id @default(uuid())
+  value           Float // e.g., 10.5
+  type            String            @default("Standard")
+  isStandard      Boolean           @default(true)
+  ProductionEntry ProductionEntry[]
+
   @@unique([value, type]) // Composite unique constraint
 }
 
 model MeterConfig {
-  id          String   @id @default(uuid())
-  value       Float    // e.g., 100.0
-  type        String   @default("Industrial")
-  
+  id              String            @id @default(uuid())
+  value           Float // e.g., 100.0
+  type            String            @default("Industrial")
+  ProductionEntry ProductionEntry[]
+
   @@unique([value, type]) // Composite unique constraint
 }
 
 // Sales Orders
 model SalesOrder {
-  id            String   @id @default(uuid())
-  orderNumber   String   @unique
+  id            String    @id @default(uuid())
+  orderNumber   String    @unique
   customerName  String
-  status        String   @default("draft") // draft, pending, confirmed
+  status        String    @default("draft") // draft, pending, confirmed
   expectedDate  DateTime?
   internalNotes String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   lineItems         LineItem[]
   productionEntries ProductionEntry[]
 }
 
 model LineItem {
-  id           String   @id @default(uuid())
+  id           String     @id @default(uuid())
   salesOrderId String
   salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
-  
-  itemId       String
-  item         Item @relation(fields: [itemId], references: [id])
-  sizeId       String
-  size         Size @relation(fields: [sizeId], references: [id])
-  qualityId    String
-  quality      Quality @relation(fields: [qualityId], references: [id])
-  colorId      String
-  color        Color @relation(fields: [colorId], references: [id])
-  secondaryColorId String?
-  
-  weightKg     Float
-  lengthMeter  Float?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  itemId           String
+  item             Item    @relation(fields: [itemId], references: [id])
+  sizeId           String
+  size             Size    @relation(fields: [sizeId], references: [id])
+  qualityId        String
+  quality          Quality @relation(fields: [qualityId], references: [id])
+  colorId          String
+  color            Color   @relation(fields: [colorId], references: [id])
+  secondaryColorId String?
+
+  weightId    Float
+  lengthMeter Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Production Entries tracking daily output linked to orders
 model ProductionEntry {
-  id            String   @id @default(uuid())
-  type          String   @default("entry") // "entry" or "return"
+  id            String  @id @default(uuid())
+  type          String  @default("entry") // "entry" or "return"
+  status        String  @default("created") // created, staged, dispatched, returned
   shiftCode     String?
   machineCenter String?
   operatorId    String?
 
-  weightKg      Float    @default(0)
-  lengthMeter   Float    @default(0)
-  bagsCount     Int      @default(0)
-  batchNumber   String?  // Batch or Slot identifier
-  entryDate     DateTime?
-  
-  // Specific Entity Master Links
-  itemId        String?
-  item          Item?    @relation(fields: [itemId], references: [id])
-  sizeId        String?
-  size          Size?    @relation(fields: [sizeId], references: [id])
-  qualityId     String?
-  quality       Quality? @relation(fields: [qualityId], references: [id])
-  colorId       String?
-  color         Color?   @relation(fields: [colorId], references: [id])
-  secondaryColorId String?
-  secondaryColor Color?  @relation("secondary", fields: [secondaryColorId], references: [id])
-  accentColorId String?
-  accentColor   Color?   @relation("accent", fields: [accentColorId], references: [id])
-  
-  salesOrderId  String?
-  salesOrder    SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  sku         String    @unique // QR/SKU code for scanning: PREFIX-TIMESTAMP-RANDOM (e.g., SKU-1234567890-ABC123)
+  bagsCount   Int       @default(0)
+  batchNumber String? // Batch or Slot identifier
+  entryDate   DateTime?
 
-  createdAt     DateTime @default(now())
+  // Specific Entity Master Links
+  itemId           String?
+  item             Item?         @relation(fields: [itemId], references: [id])
+  weightId         String?
+  weight           WeightConfig? @relation(fields: [weightId], references: [id])
+  meterId          String?
+  meter            MeterConfig?  @relation(fields: [meterId], references: [id])
+  sizeId           String?
+  size             Size?         @relation(fields: [sizeId], references: [id])
+  qualityId        String?
+  quality          Quality?      @relation(fields: [qualityId], references: [id])
+  colorId          String?
+  color            Color?        @relation(fields: [colorId], references: [id])
+  secondaryColorId String?
+  secondaryColor   Color?        @relation("secondary", fields: [secondaryColorId], references: [id])
+  accentColorId    String?
+  accentColor      Color?        @relation("accent", fields: [accentColorId], references: [id])
+
+  salesOrderId String?
+  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Logistics Core
 model DispatchChallan {
-  id              String   @id @default(uuid())
-  challanNumber   String   @unique
-  vehicleNo       String?
-  transporter     String?
-  driverContact   String?
-  destination     String?
-  status          String   @default("staged") // staged, dispatched, delivered, returned
-  dispatchDate    DateTime @default(now())
-  
-  lines           DispatchLine[]
+  id            String   @id @default(uuid())
+  challanNumber String   @unique
+  vehicleNo     String?
+  transporter   String?
+  driverContact String?
+  destination   String?
+  status        String   @default("staged") // staged, dispatched, delivered, returned
+  dispatchDate  DateTime @default(now())
+
+  lines DispatchLine[]
 }
 
 model DispatchLine {
-  id              String   @id @default(uuid())
-  challanId       String
-  challan         DispatchChallan @relation(fields: [challanId], references: [id], onDelete: Cascade)
-  productionId    String?
-  batchWeightKg   Float    @default(0)
-  description     String?
+  id            String          @id @default(uuid())
+  challanId     String
+  challan       DispatchChallan @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  productionId  String?
+  batchweightId Float           @default(0)
+  description   String?
 }

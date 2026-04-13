@@ -14,14 +14,14 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+    // console.log(email, password);
     try {
       const data = await apiClient.post('/auth/login', { email, password });
 
       // Valid credentials
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      
+
       window.location.href = '/dashboard';
     } catch (err) {
       setError(err.message);
@@ -51,7 +51,7 @@ const Login = () => {
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>
               <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
-                Operator Identity (Email)
+                User ID:
               </label>
               <div className="mt-1">
                 <input
@@ -66,7 +66,7 @@ const Login = () => {
 
             <div>
               <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
-                Access Security Code
+                Password:
               </label>
               <div className="mt-1">
                 <input
@@ -91,11 +91,11 @@ const Login = () => {
                 disabled={loading}
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-xs font-bold uppercase tracking-widest text-surface-container-lowest bg-secondary hover:bg-secondary-fixed-dim focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary focus:ring-offset-[#0f141a] transition-all disabled:opacity-50"
               >
-                {loading ? 'Authenticating...' : 'Initialize Session'}
+                {loading ? 'Authenticating...' : 'Login'}
               </button>
             </div>
           </form>
-          
+
           <div className="mt-6 border-t border-primary/20 pt-4 text-center">
             <p className="text-[10px] text-slate-500 font-mono">
               System Admin Default: admin@featherafine.com / admin123

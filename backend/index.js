@@ -16,9 +16,11 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
+  // origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
+  origin: process.env.ALLOWED_ORIGINS?.split(','),
+  // origin: "*",
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -47,25 +49,25 @@ app.get('/api/dashboard', verifyToken, async (req, res) => {
   try {
     const totalOrders = await prisma.salesOrder.count();
     const pendingOrders = await prisma.salesOrder.count({ where: { status: 'pending' } });
-    
+
     // Aggregate production entry metrics
     const productionStats = await prisma.productionEntry.aggregate({
       where: { type: 'entry' },
-      _sum: { weightKg: true },
+      _sum: { weightId: true },
       _count: { id: true }
     });
 
     const activeStockCount = productionStats._count.id || 0;
-    const totalProductionKg = productionStats._sum.weightKg || 0;
+    const totalProductionKg = productionStats._sum.weightId || 0;
 
     // Line items sum to calculate accurate Sales Revenue based on current basePrices
     const lineItemsData = await prisma.lineItem.findMany({
       include: { item: true }
     });
-    
+
     let approxRevenue = 0;
     lineItemsData.forEach(line => {
-      approxRevenue += (line.weightKg || 0) * (line.item?.basePrice || 120);
+      approxRevenue += (line.weightId || 0) * (line.item?.basePrice || 120);
     });
 
     res.json({
@@ -86,5 +88,6 @@ app.get('/api/dashboard', verifyToken, async (req, res) => {
 });
 
 app.listen(port, () => {
+  // console.log(process.env.ALLOWED_ORIGINS?.split(','));
   console.log(`Server running on port ${port}`);
 });
