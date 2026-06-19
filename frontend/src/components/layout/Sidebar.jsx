@@ -36,6 +36,7 @@ const Sidebar = () => {
       children: [
         { label: 'Pre-Dispatch Staging', path: '/sales/staging' },
         { label: 'Sales Orders', path: '/sales/order' },
+        { label: 'Scan QR', path: '/sales/scan' },
         { label: 'Generate Challan', path: '/sales/dispatchPage' },
       ]
     },

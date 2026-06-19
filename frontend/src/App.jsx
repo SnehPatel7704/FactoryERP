@@ -17,6 +17,7 @@ import ManagementMaster from './pages/master/ManagementMaster';
 
 // 3. Sales & Orders
 import SalesOrderPage from './pages/sales/SalesOrderPage';
+import ScanQR from './pages/sales/ScanQR';
 
 // 4. Dispatch & Logistics
 import PreDispatchStaging from './pages/sales/PreDispatchStaging';
@@ -85,6 +86,7 @@ function App() {
 
           {/* Sales & Dispatch */}
           <Route path="sales/order" element={<SalesOrderPage />} />
+          <Route path="sales/scan" element={<ScanQR />} />
           <Route path="sales/staging" element={<PreDispatchStaging />} />
           <Route path="sales/dispatch" element={<DispatchChallanGeneration />} />
           <Route path="sales/dispatchPage" element={<DispatchChallanGenerationPage />} />

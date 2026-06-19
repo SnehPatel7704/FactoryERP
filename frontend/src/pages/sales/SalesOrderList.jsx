@@ -99,6 +99,13 @@ const SalesOrderList = ({ onAddNew, onEditOrder, onViewDispatch, onGenerateChall
               DISPATCH HISTORY
             </button>
             <button
+              onClick={() => window.location.href = '/sales/scan'}
+              className="bg-indigo-500 text-white px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg shadow-indigo-500/20 hover:bg-indigo-600 transition-all active:scale-95"
+              title="Open QR scan"
+            >
+              Scan QR
+            </button>
+            <button
               onClick={onAddNew}
               className="bg-green-500 text-slate-900 px-6 py-3 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg shadow-green-500/20 hover:bg-green-600 transition-all active:scale-95"
               title="Create new sales order"
