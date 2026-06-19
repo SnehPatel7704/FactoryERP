@@ -20,7 +20,7 @@ router.get('/production/recent', async (req, res) => {
   try {
     const entries = await req.prisma.productionEntry.findMany({
       where: { type: 'entry' },
-      include: { item: true, size: true, quality: true, color: true, secondaryColor: true, accentColor: true, weightId: true, lengthMeter: true, bagsCount: true },
+      include: { item: true, size: true, quality: true, color: true, secondaryColor: true, accentColor: true },
       orderBy: { createdAt: 'desc' },
       take: 10
     });
@@ -33,7 +33,7 @@ router.get('/production/recent', async (req, res) => {
 // Create production log (Entry)
 router.post('/production/entry', async (req, res) => {
   try {
-    const { shiftCode, machineCenter, operatorId, weightId, lengthMeter, bagsCount, batchNumber, entryDate, itemId, sizeId, qualityId, colorId, secondaryColorId, accentColorId } = req.body;
+    const { shiftCode, machineCenter, operatorId, weightId, lengthMeter, meterId, bagsCount, batchNumber, entryDate, itemId, sizeId, qualityId, colorId, secondaryColorId, accentColorId } = req.body;
 
     if (!itemId || !sizeId || !qualityId || !colorId) throw new Error("Missing Master Data foreign keys linking inventory element");
 
@@ -50,7 +50,7 @@ router.post('/production/entry', async (req, res) => {
         batchNumber: batchNumber || null,
         entryDate: entryDate ? new Date(entryDate) : new Date(),
         weightId: Number(weightId) || 0,
-        lengthMeter: Number(lengthMeter) || 0,
+        lengthMeter: Number(lengthMeter ?? meterId) || 0,
         bagsCount: Number(bagsCount) || 1,
         item: { connect: { id: itemId } },
         size: { connect: { id: sizeId } },
@@ -106,7 +106,7 @@ router.post('/production/return', async (req, res) => {
 router.put('/production/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { weightId, lengthMeter, bagsCount, batchNumber, entryDate, itemId, sizeId, qualityId, colorId, secondaryColorId, accentColorId } = req.body;
+    const { weightId, lengthMeter, meterId, bagsCount, batchNumber, entryDate, itemId, sizeId, qualityId, colorId, secondaryColorId, accentColorId } = req.body;
 
     if (!id) throw new Error("Entry ID is required");
     if (!itemId || !sizeId || !qualityId || !colorId) throw new Error("Missing Master Data foreign keys");
@@ -117,7 +117,7 @@ router.put('/production/:id', async (req, res) => {
         batchNumber: batchNumber || null,
         entryDate: entryDate ? new Date(entryDate) : undefined,
         weightId: weightId !== undefined ? Number(weightId) : undefined,
-        lengthMeter: lengthMeter !== undefined ? Number(lengthMeter) : undefined,
+        lengthMeter: lengthMeter !== undefined ? Number(lengthMeter) : (meterId !== undefined ? Number(meterId) : undefined),
         bagsCount: bagsCount !== undefined ? Number(bagsCount) : undefined,
         item: { connect: { id: itemId } },
         size: { connect: { id: sizeId } },
@@ -200,7 +200,7 @@ router.patch('/production/:id/status', async (req, res) => {
     if (!id) throw new Error("Entry ID is required");
     if (!status) throw new Error("Status is required");
 
-    const validStatuses = ['created', 'staged', 'DISPATCHED', 'returned'];
+    const validStatuses = ['created', 'staged', 'dispatched', 'returned', 'pre-sale'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
@@ -235,7 +235,7 @@ router.patch('/production/bulk/status', async (req, res) => {
     }
     if (!status) throw new Error("Status is required");
 
-    const validStatuses = ['created', 'staged', 'DISPATCHED', 'returned'];
+    const validStatuses = ['created', 'staged', 'dispatched', 'returned', 'pre-sale'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }

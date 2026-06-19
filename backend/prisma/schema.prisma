@@ -65,20 +65,18 @@ model Quality {
 }
 
 model WeightConfig {
-  id              String            @id @default(uuid())
-  value           Float // e.g., 10.5
-  type            String            @default("Standard")
-  isStandard      Boolean           @default(true)
-  ProductionEntry ProductionEntry[]
+  id         String   @id @default(uuid())
+  value      Float    // e.g., 10.5
+  type       String   @default("Standard")
+  isStandard Boolean  @default(true)
 
   @@unique([value, type]) // Composite unique constraint
 }
 
 model MeterConfig {
-  id              String            @id @default(uuid())
-  value           Float // e.g., 100.0
-  type            String            @default("Industrial")
-  ProductionEntry ProductionEntry[]
+  id    String  @id @default(uuid())
+  value Float   // e.g., 100.0
+  type  String  @default("Industrial")
 
   @@unique([value, type]) // Composite unique constraint
 }
@@ -133,14 +131,12 @@ model ProductionEntry {
   bagsCount   Int       @default(0)
   batchNumber String? // Batch or Slot identifier
   entryDate   DateTime?
+  weightId    Float?
+  lengthMeter Float?
 
   // Specific Entity Master Links
   itemId           String?
   item             Item?         @relation(fields: [itemId], references: [id])
-  weightId         String?
-  weight           WeightConfig? @relation(fields: [weightId], references: [id])
-  meterId          String?
-  meter            MeterConfig?  @relation(fields: [meterId], references: [id])
   sizeId           String?
   size             Size?         @relation(fields: [sizeId], references: [id])
   qualityId        String?

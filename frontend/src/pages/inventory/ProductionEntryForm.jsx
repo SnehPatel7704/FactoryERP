@@ -46,8 +46,8 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
         qualityId: entry.qualityId || '',
         sizeId: entry.sizeId || '',
         itemId: entry.itemId || '',
-        weightId: entry.weightId || '',
-        meterId: entry.meterId || '',
+        weightId: entry.weightId !== undefined && entry.weightId !== null ? String(entry.weightId) : '',
+        meterId: entry.lengthMeter !== undefined && entry.lengthMeter !== null ? String(entry.lengthMeter) : '',
         colorId: entry.colorId || '',
         secondaryColorId: entry.secondaryColorId || '',
         accentColorId: entry.accentColorId || '',
@@ -91,8 +91,8 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
         colorId: selectedEntry.colorId || '',
         secondaryColorId: selectedEntry.secondaryColorId || '',
         accentColorId: selectedEntry.accentColorId || '',
-        weightId: selectedEntry.weightId || '',
-        meterId: selectedEntry.meterId || '',
+        weightId: selectedEntry.weightId !== undefined && selectedEntry.weightId !== null ? String(selectedEntry.weightId) : '',
+        meterId: selectedEntry.lengthMeter !== undefined && selectedEntry.lengthMeter !== null ? String(selectedEntry.lengthMeter) : '',
         entryDate: new Date().toISOString().split('T')[0]
       });
       setSelectedTemplate('');
@@ -129,7 +129,6 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
     }
 
     if (meterId <= 0 || isNaN(meterId)) {
-      console.log(meterId);
       alert('Meter must be a positive number');
       return;
     }
@@ -146,8 +145,9 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
       colorId: formData.colorId,
       secondaryColorId: formData.secondaryColorId || null,
       accentColorId: formData.accentColorId || null,
-      weightId: formData.weightId,
-      meterId: formData.meterId,
+      weightId: Number(formData.weightId),
+      meterId: Number(formData.meterId),
+      lengthMeter: Number(formData.meterId),
       entryDate: formData.entryDate,
       shiftCode: null,
       machineCenter: null,
@@ -288,7 +288,7 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
               <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Weight *</label>
               <select required name="weightId" value={formData.weightId} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all">
                 <option value="">Select Weight</option>
-                {masterData.weights.map(m => <option key={m.id} value={m.id}>{m.value}</option>)}
+                {masterData.weights.map(m => <option key={m.id} value={String(m.value)}>{m.value} Kg</option>)}
               </select>
             </div>
 
@@ -297,7 +297,7 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
               <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Meter *</label>
               <select required name="meterId" value={formData.meterId} onChange={handleChange} className="w-full bg-slate-800 border-slate-700 border rounded-lg text-sm text-white focus:ring-1 focus:ring-green-500 focus:border-green-500 py-3 outline-none transition-all">
                 <option value="">Select Meter</option>
-                {masterData.meters.map(m => <option key={m.id} value={m.id}>{m.value}</option>)}
+                {masterData.meters.map(m => <option key={m.id} value={String(m.value)}>{m.value} m</option>)}
               </select>
             </div>
 

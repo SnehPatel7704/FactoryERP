@@ -132,7 +132,7 @@ router.get('/dispatch/history/all', async (req, res) => {
   try {
     const dispatchedEntries = await req.prisma.productionEntry.findMany({
       where: {
-        status: 'DISPATCHED'  // Fetch only dispatched items
+        status: 'dispatched'  // Fetch only dispatched items
       },
       include: {
         item: true,
