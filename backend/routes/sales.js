@@ -126,6 +126,70 @@ router.get('/staging', async (req, res) => {
   }
 });
 
+// QR scan lookup - accepts payload with `id` or `sku` and returns production + sales details
+router.post('/scan/qr', async (req, res) => {
+  try {
+    const { id, sku } = req.body || {};
+    if (!id && !sku) return res.status(400).json({ error: 'Provide id or sku in request body' });
+
+    let productionEntry = null;
+    if (id) {
+      productionEntry = await req.prisma.productionEntry.findUnique({
+        where: { id },
+        include: {
+          item: true,
+          size: true,
+          quality: true,
+          color: true,
+          secondaryColor: true,
+          accentColor: true,
+          salesOrder: true
+        }
+      });
+    } else {
+      productionEntry = await req.prisma.productionEntry.findFirst({
+        where: { sku },
+        include: {
+          item: true,
+          size: true,
+          quality: true,
+          color: true,
+          secondaryColor: true,
+          accentColor: true,
+          salesOrder: true
+        }
+      });
+    }
+
+    if (!productionEntry) return res.status(404).json({ error: 'Production entry not found' });
+
+    let salesOrder = null;
+    if (productionEntry.salesOrderId) {
+      salesOrder = await req.prisma.salesOrder.findUnique({
+        where: { id: productionEntry.salesOrderId },
+        include: {
+          lineItems: {
+            include: {
+              item: true,
+              size: true,
+              quality: true,
+              color: true
+            }
+          }
+        }
+      });
+      if (salesOrder && !salesOrder.status) {
+        salesOrder.status = 'draft';
+      }
+    }
+
+    res.json({ productionEntry, salesOrder });
+  } catch (error) {
+    console.error('QR scan lookup error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // Get all dispatched entries with sales order details (for dispatch history tracking)
 router.get('/dispatch/history/all', async (req, res) => {

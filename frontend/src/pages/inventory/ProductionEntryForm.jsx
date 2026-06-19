@@ -4,6 +4,7 @@ import Loader from '../../components/ui/Loader';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import { StatusBadge } from '../../utils/statusBadge';
 import { X, Save } from 'lucide-react';
+import apiClient from '../../utils/apiClient';
 
 const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
   // API hooks
@@ -30,6 +31,7 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
   });
 
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState(null);
 
   // Initialize form with existing data if editing
   useEffect(() => {
@@ -55,6 +57,11 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
       });
     }
   }, [isEditing, entry]);
+
+  useEffect(() => {
+    // reset qr when entry changes
+    setQrDataUrl(null);
+  }, [entry]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -173,6 +180,17 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
     }
   };
 
+  const handleGenerateQR = async () => {
+    try {
+      const id = entry?.id;
+      if (!id) return alert('QR generation requires an existing entry (save first).');
+      const res = await apiClient.get(`/inventory/production/${id}/qrcode`);
+      setQrDataUrl(res.dataUrl || res.dataURL || res.data || res);
+    } catch (err) {
+      alert('Failed to generate QR: ' + (err.message || err));
+    }
+  };
+
   if (loading) return <div className="p-8 flex items-center justify-center min-h-screen text-slate-100"><Loader text="Loading Form..." /></div>;
   if (error && !isEditing) return <div className="p-8"><ErrorMessage error={error} retryFunction={fetchMaster} /></div>;
 
@@ -252,6 +270,20 @@ const ProductionEntryForm = ({ entry, onClose, onSuccess }) => {
                   <StatusBadge status={entry.status} className="text-xs" />
                 </div>
               </div>
+            </div>
+          )}
+
+          {isEditing && entry?.sku && (
+            <div className="mb-4">
+              <button type="button" onClick={handleGenerateQR} className="bg-indigo-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-600">
+                Generate QR
+              </button>
+              {qrDataUrl && (
+                <div className="mt-4">
+                  <img alt="Production QR" src={qrDataUrl} className="w-40 h-40 bg-white p-2 inline-block" />
+                  <a href={qrDataUrl} download={`${entry.sku}.png`} className="ml-4 text-sm text-blue-300 underline">Download PNG</a>
+                </div>
+              )}
             </div>
           )}
 

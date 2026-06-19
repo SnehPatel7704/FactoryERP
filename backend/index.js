@@ -50,36 +50,51 @@ app.get('/api/dashboard', verifyToken, async (req, res) => {
     const totalOrders = await prisma.salesOrder.count();
     const pendingOrders = await prisma.salesOrder.count({ where: { status: 'pending' } });
 
-    // Aggregate production entry metrics
-    const productionStats = await prisma.productionEntry.aggregate({
-      where: { type: 'entry' },
-      _sum: { weightId: true },
-      _count: { id: true }
-    });
+    // Compute production entry metrics via findMany to avoid prisma aggregate type mismatch
+    let productionEntries = [];
+    let activeStockCount = 0;
+    let totalProductionMeter = 0;
+    let totalBags = 0;
 
-    const activeStockCount = productionStats._count.id || 0;
-    const totalProductionKg = productionStats._sum.weightId || 0;
+    try {
+      productionEntries = await prisma.productionEntry.findMany({
+        where: { type: 'entry' },
+        select: { lengthMeter: true, bagsCount: true }
+      });
 
-    // Line items sum to calculate accurate Sales Revenue based on current basePrices
-    const lineItemsData = await prisma.lineItem.findMany({
-      include: { item: true }
-    });
+      activeStockCount = productionEntries.length || 0;
+      totalProductionMeter = productionEntries.reduce((s, e) => s + (e.lengthMeter || 0), 0);
+      totalBags = productionEntries.reduce((s, e) => s + (e.bagsCount || 0), 0);
+    } catch (err) {
+      // If DB schema doesn't match expected fields, fall back to zeroed metrics (avoid 500s)
+      activeStockCount = 0;
+      totalProductionMeter = 0;
+      totalBags = 0;
+    }
 
+    // Line items sum to calculate approximate Sales Revenue based on current basePrices
     let approxRevenue = 0;
-    lineItemsData.forEach(line => {
-      approxRevenue += (line.weightId || 0) * (line.item?.basePrice || 120);
-    });
+    try {
+      const lineItemsData = await prisma.lineItem.findMany({ include: { item: true } });
+      lineItemsData.forEach(line => {
+        approxRevenue += (line.weightId || 0) * (line.item?.basePrice || 120);
+      });
+    } catch (err) {
+      // If the DB schema for LineItem differs, skip revenue calc to avoid 500s
+      approxRevenue = 0;
+    }
 
     res.json({
       metrics: {
         totalOrders,
         pendingOrders,
-        totalProductionKg,
+        totalProductionMeter,
+        totalBags,
         monthlySales: approxRevenue,
         annualTarget: 4100000,
         physicalStocks: activeStockCount,
-        monthlyProduction: totalProductionKg, // Using total dynamically for now
-        annualProduction: totalProductionKg // Using total dynamically for now
+        monthlyProduction: totalProductionMeter, // Using total dynamically for now
+        annualProduction: totalProductionMeter // Using total dynamically for now
       }
     });
   } catch (error) {

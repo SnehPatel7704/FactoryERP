@@ -1,4 +1,5 @@
 import express from 'express';
+import QRCode from 'qrcode';
 import { generateSKU } from '../lib/skuGenerator.js';
 const router = express.Router();
 
@@ -186,6 +187,30 @@ router.get('/production/sku/:sku', async (req, res) => {
     }
 
     res.json(entry);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Generate QR code for a production entry (returns dataURL PNG)
+router.get('/production/:id/qrcode', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: 'Production entry id is required' });
+
+    const entry = await req.prisma.productionEntry.findUnique({
+      where: { id },
+      include: { item: true, salesOrder: true }
+    });
+
+    if (!entry) return res.status(404).json({ error: 'Production entry not found' });
+
+    // Minimal payload included in QR: id and sku (scanner can call backend to fetch full details)
+    const payload = JSON.stringify({ id: entry.id, sku: entry.sku });
+
+    const dataUrl = await QRCode.toDataURL(payload, { errorCorrectionLevel: 'M', margin: 2 });
+
+    res.json({ dataUrl, payload });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
